@@ -1,0 +1,91 @@
+# BMAD crew — task definitions (CrewAI v1.15.1)
+# One task per hand-off. The pipeline is linear (Process.sequential); each task's
+# `context` lists the upstream tasks whose outputs feed it. This is the "clean linear
+# span tree" the observability build (ISI-1586) instruments.
+#
+#   analyst -> pm -> ux -> po -> architect -> sm -> dev -> qa
+#
+# `context` is wired explicitly (not just list order) so the hand-offs are legible in
+# both the code and the trace waterfall.
+
+analyze_brief:
+  description: >
+    Analyze the incoming brief for "{project}":
+    {brief}
+    Identify the core problem, the target users, hard constraints, and what success
+    looks like. Call out anything ambiguous or missing rather than inventing it.
+  expected_output: >
+    A concise project brief in markdown: Problem, Users, Constraints, Success Signals,
+    Open Questions.
+  agent: analyst
+
+write_prd:
+  description: >
+    Using the project brief, write a PRD for "{project}": Goals, Non-Goals,
+    Prioritized Scope, and 3-6 Epics each with a one-line value statement.
+  expected_output: >
+    A PRD in markdown with sections: Goals, Non-Goals, Scope (MoSCoW), Epics.
+  agent: pm
+  context: [analyze_brief]
+
+ux_spec:
+  description: >
+    From the PRD, define the key user journeys for "{project}": the primary happy-path
+    flow, the screens/states involved, and the two edge states that matter most.
+  expected_output: >
+    A lightweight UX spec in markdown: Primary Journey (numbered steps),
+    Screens/States, Critical Edge States.
+  agent: ux
+  context: [write_prd]
+
+refine_backlog:
+  description: >
+    Validate the PRD and UX spec for "{project}" for coherence. Tighten the epics into
+    a refined backlog with testable acceptance criteria; flag any gaps or contradictions.
+  expected_output: >
+    A refined backlog in markdown: per-epic acceptance criteria (Given/When/Then where
+    useful) plus a short "Issues & Gaps" list.
+  agent: po
+  context: [write_prd, ux_spec]
+
+design_architecture:
+  description: >
+    Produce the solution architecture for "{project}" from the PRD and refined backlog:
+    components and their boundaries, data flow, technology choices with honest
+    trade-offs, and the top implementation risks.
+  expected_output: >
+    An architecture doc in markdown: Component Overview, Data Flow, Technology Choices
+    (+ trade-offs), Top Risks & Mitigations.
+  agent: architect
+  context: [write_prd, refine_backlog]
+
+slice_stories:
+  description: >
+    Slice the architecture and refined backlog for "{project}" into implementable epics
+    and user stories. Sequence them to retire risk early.
+  expected_output: >
+    An epics & stories list in markdown: each story as "As a <role>, I want <x>, so that
+    <value>" with acceptance criteria and a suggested order.
+  agent: sm
+  context: [design_architecture, refine_backlog]
+
+implement_story:
+  description: >
+    Take the single highest-priority story for "{project}" and implement it. Respect the
+    architecture's boundaries. Provide the key code (or a precise implementation plan
+    with the critical code) that satisfies the story's acceptance criteria.
+  expected_output: >
+    An implementation in markdown: the story being built, the code / diff, and how it
+    meets each acceptance criterion.
+  agent: dev
+  context: [slice_stories, design_architecture]
+
+qa_review:
+  description: >
+    Review the implementation for "{project}" against its story and the architecture.
+    Produce a QA report with a test plan, residual risks, and a ship / no-ship decision.
+  expected_output: >
+    A QA report in markdown: Test Plan, Verified, Residual Risks, Decision (SHIP /
+    NO-SHIP with reason).
+  agent: qa
+  context: [implement_story, slice_stories]

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bmad-crew-memory
+  namespace: bmad-crew
+spec:
+  # CrewAI memory defaults to LanceDB on local disk (CREWAI_STORAGE_DIR). In k8s that
+  # is ephemeral, so we mount a PVC to survive pod restarts. This is the #1
+  # "works on my laptop, breaks in k8s" gotcha (research §3.2). Only needed if the
+  # crew runs with memory=True; harmless otherwise.
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  # storageClassName: <your-default>   # e.g. csi-nfs / local-path — set per cluster

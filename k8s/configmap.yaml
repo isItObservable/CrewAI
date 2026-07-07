@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bmad-crew-config
+  namespace: bmad-crew
+data:
+  # Local qwen via Ollama — no external key, just a base URL (the episode differentiator).
+  MODEL: "ollama/qwen3.6"
+  OLLAMA_BASE_URL: "http://10.0.0.185:11434"
+  MODEL_TEMPERATURE: "0.4"
+  # OTel: send to the in-cluster Collector gateway (owned by ISI-1586).
+  # 4318 = OTLP/HTTP. Adjust to the Observability Agent's collector Service DNS.
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
+  OTEL_SERVICE_NAME: "bmad-crew"
+  CREWAI_DISABLE_TELEMETRY: "true"

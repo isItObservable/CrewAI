@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bmad-crew
+  namespace: bmad-crew
+  labels:
+    app.kubernetes.io/name: bmad-crew
+    app.kubernetes.io/part-of: isitobservable-crewai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bmad-crew
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bmad-crew
+    spec:
+      containers:
+        - name: bmad-crew
+          # Replace with your registry/tag once built & pushed (see TUTORIAL.md §5).
+          image: ghcr.io/isitobservable/bmad-crew:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: bmad-crew-config
+            - secretRef:
+                name: bmad-crew-secrets
+          resources:
+            # The pod is light — the LLM inference is remote (Ollama). Raise if you run
+            # in-cluster inference or enable heavy memory/RAG.
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: memory
+              mountPath: /app/.crewai
+      volumes:
+        - name: memory
+          persistentVolumeClaim:
+            claimName: bmad-crew-memory
