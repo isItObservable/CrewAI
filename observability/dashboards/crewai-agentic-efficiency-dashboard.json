@@ -1,0 +1,1001 @@
+{
+  "name": "CrewAI BMAD Crew \u2014 Agentic Efficiency",
+  "type": "dashboard",
+  "content": {
+    "layouts": {
+      "0": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "1": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 2
+      },
+      "10": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "11": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      },
+      "12": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "13": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "14": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "15": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "16": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "17": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "18": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "19": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      },
+      "2": {
+        "h": 3,
+        "w": 5,
+        "x": 0,
+        "y": 3
+      },
+      "20": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 51
+      },
+      "21": {
+        "h": 3,
+        "w": 6,
+        "x": 0,
+        "y": 53
+      },
+      "22": {
+        "h": 3,
+        "w": 6,
+        "x": 6,
+        "y": 53
+      },
+      "23": {
+        "h": 3,
+        "w": 6,
+        "x": 12,
+        "y": 53
+      },
+      "24": {
+        "h": 3,
+        "w": 6,
+        "x": 18,
+        "y": 53
+      },
+      "25": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 56
+      },
+      "26": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 56
+      },
+      "27": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 56
+      },
+      "28": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 62
+      },
+      "29": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 67
+      },
+      "3": {
+        "h": 3,
+        "w": 5,
+        "x": 5,
+        "y": 3
+      },
+      "30": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 65
+      },
+      "4": {
+        "h": 3,
+        "w": 5,
+        "x": 10,
+        "y": 3
+      },
+      "5": {
+        "h": 3,
+        "w": 5,
+        "x": 15,
+        "y": 3
+      },
+      "6": {
+        "h": 3,
+        "w": 4,
+        "x": 20,
+        "y": 3
+      },
+      "7": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "8": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 7
+      },
+      "9": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      }
+    },
+    "settings": {
+      "gridLayout": {
+        "columnsCount": 24
+      }
+    },
+    "tiles": {
+      "0": {
+        "content": "# \ud83e\udd16 CrewAI \u2014 Agentic Efficiency\nToken economics, LLM calls & tool invocations for the **observable-crewai** CrewAI crew (self-hosted qwen3.6 on the Mac Studio). Signals: `gen_ai.usage.*`, `gen_ai.operation.name`, `gen_ai.tool.name` \u2014 OTLP spans \u2192 Dynatrace. _ISI-1544 / ISI-1539._",
+        "type": "markdown"
+      },
+      "1": {
+        "content": "## Overview",
+        "type": "markdown"
+      },
+      "10": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize tokens = sum(toLong(`gen_ai.usage.input_tokens`)) + sum(toLong(`gen_ai.usage.output_tokens`)), by:{`gen_ai.agent.name`}\n| sort tokens desc",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Total Tokens by Agent",
+        "type": "data",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "chartSettings": {
+            "legend": {
+              "position": "bottom"
+            }
+          },
+          "coloring": {
+            "colorRules": [
+              {
+                "colorMode": "color-palette",
+                "colorPalette": "purple-rain",
+                "comparator": "= *value*",
+                "field": "DT.name",
+                "type": "string",
+                "value": ""
+              }
+            ]
+          }
+        }
+      },
+      "11": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize tokens = sum(toLong(`gen_ai.usage.input_tokens`)) + sum(toLong(`gen_ai.usage.output_tokens`)), by:{`gen_ai.request.model`}\n| sort tokens desc",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Tokens by Model",
+        "type": "data",
+        "visualization": "pieChart",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "chartSettings": {
+            "legend": {
+              "position": "right"
+            }
+          },
+          "coloring": {
+            "colorRules": [
+              {
+                "colorMode": "color-palette",
+                "colorPalette": "purple-rain",
+                "comparator": "= *value*",
+                "field": "DT.name",
+                "type": "string",
+                "value": ""
+              }
+            ]
+          }
+        }
+      },
+      "12": {
+        "content": "## LLM & Tool Activity",
+        "type": "markdown"
+      },
+      "13": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and isNotNull(`gen_ai.operation.name`)\n| makeTimeseries ops = count(), by:{`gen_ai.operation.name`}",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Agent Operations Over Time",
+        "type": "data",
+        "visualization": "areaChart",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "chartSettings": {
+            "legend": {
+              "position": "bottom"
+            }
+          },
+          "coloring": {
+            "colorRules": [
+              {
+                "colorMode": "color-palette",
+                "colorPalette": "purple-rain",
+                "comparator": "= *value*",
+                "field": "DT.name",
+                "type": "string",
+                "value": ""
+              }
+            ]
+          }
+        }
+      },
+      "14": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize avgMs = avg(duration) / 1000000.0, by:{`gen_ai.agent.name`}\n| sort avgMs desc",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Avg LLM Latency by Agent (ms)",
+        "type": "data",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "chartSettings": {
+            "legend": {
+              "position": "bottom"
+            }
+          },
+          "coloring": {
+            "colorRules": [
+              {
+                "colorMode": "color-palette",
+                "colorPalette": "purple-rain",
+                "comparator": "= *value*",
+                "field": "DT.name",
+                "type": "string",
+                "value": ""
+              }
+            ]
+          }
+        }
+      },
+      "15": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize calls = count(), by:{`gen_ai.tool.name`}\n| sort calls desc",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Tool Calls by Tool",
+        "type": "data",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "chartSettings": {
+            "legend": {
+              "position": "bottom"
+            }
+          },
+          "coloring": {
+            "colorRules": [
+              {
+                "colorMode": "color-palette",
+                "colorPalette": "purple-rain",
+                "comparator": "= *value*",
+                "field": "DT.name",
+                "type": "string",
+                "value": ""
+              }
+            ]
+          }
+        }
+      },
+      "16": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize calls = count(), by:{`gen_ai.agent.name`}\n| sort calls desc",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Tool Calls by Agent",
+        "type": "data",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "chartSettings": {
+            "legend": {
+              "position": "bottom"
+            }
+          },
+          "coloring": {
+            "colorRules": [
+              {
+                "colorMode": "color-palette",
+                "colorPalette": "purple-rain",
+                "comparator": "= *value*",
+                "field": "DT.name",
+                "type": "string",
+                "value": ""
+              }
+            ]
+          }
+        }
+      },
+      "17": {
+        "content": "## Per-Agent Breakdown",
+        "type": "markdown"
+      },
+      "18": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and in(`gen_ai.operation.name`, \"chat\", \"execute_tool\")\n| summarize llmCalls = countIf(`gen_ai.operation.name` == \"chat\"), toolCalls = countIf(`gen_ai.operation.name` == \"execute_tool\"), inputTokens = sum(toLong(`gen_ai.usage.input_tokens`)), outputTokens = sum(toLong(`gen_ai.usage.output_tokens`)), by:{agent = `gen_ai.agent.name`}\n| filter isNotNull(agent)\n| sort inputTokens desc",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Per-Agent Efficiency",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "autoSelectVisualization": false
+        }
+      },
+      "19": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and isNotNull(`gen_ai.operation.name`)\n| sort timestamp desc\n| fields timestamp, agent = `gen_ai.agent.name`, operation = `gen_ai.operation.name`, tool = `gen_ai.tool.name`, model = `gen_ai.request.model`, inTok = `gen_ai.usage.input_tokens`, outTok = `gen_ai.usage.output_tokens`\n| limit 100",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Live Agentic Event Feed",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "autoSelectVisualization": false
+        }
+      },
+      "2": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize Tokens = sum(toLong(`gen_ai.usage.input_tokens`))",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Input Tokens",
+        "type": "data",
+        "visualization": "singleValue",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "singleValue": {
+            "label": "input tokens",
+            "recordField": "Tokens",
+            "sparklineSettings": {
+              "isVisible": false
+            },
+            "trend": {
+              "isVisible": false
+            }
+          }
+        }
+      },
+      "20": {
+        "content": "## Efficiency KPIs & Tool Quality \u2014 ISI-1571 additions\nCost/throughput KPIs and tool reliability derived from spans. Signals: tokens-per-run, tool latency & `isError` rate, run/LLM latency percentiles, finish reasons, MCP-vs-builtin tool split. _ISI-1571 / ISI-1570._",
+        "type": "markdown"
+      },
+      "21": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and (`gen_ai.operation.name` == \"chat\" or `gen_ai.operation.name` == \"invoke_agent\")\n| summarize tok = sum(toLong(`gen_ai.usage.input_tokens`)) + sum(toLong(`gen_ai.usage.output_tokens`)), runs = countIf(`gen_ai.operation.name` == \"invoke_agent\")\n| fieldsAdd TokensPerRun = if(runs > 0, toDouble(tok) / runs, else: 0.0)\n| fields TokensPerRun",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Avg Tokens / Run",
+        "type": "data",
+        "visualization": "singleValue",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "singleValue": {
+            "label": "input+output / invoke_agent",
+            "recordField": "TokensPerRun",
+            "sparklineSettings": {
+              "isVisible": false
+            },
+            "trend": {
+              "isVisible": false
+            }
+          }
+        }
+      },
+      "22": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize total = count(), errors = countIf(span.status_code == \"ERROR\")\n| fieldsAdd ErrPct = if(total > 0, toDouble(errors) / total * 100, else: 0.0)\n| fields ErrPct",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Tool Error Rate (%)",
+        "type": "data",
+        "visualization": "singleValue",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "singleValue": {
+            "label": "isError / execute_tool",
+            "recordField": "ErrPct",
+            "sparklineSettings": {
+              "isVisible": false
+            },
+            "trend": {
+              "isVisible": false
+            }
+          }
+        }
+      },
+      "23": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize p90 = percentile(duration, 90) / 1000000000.0",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Run Latency p90 (s)",
+        "type": "data",
+        "visualization": "singleValue",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "singleValue": {
+            "label": "invoke_agent p90",
+            "recordField": "p90",
+            "sparklineSettings": {
+              "isVisible": false
+            },
+            "trend": {
+              "isVisible": false
+            }
+          }
+        }
+      },
+      "24": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize p90 = percentile(duration, 90) / 1000000000.0",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "LLM Latency p90 (s)",
+        "type": "data",
+        "visualization": "singleValue",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "singleValue": {
+            "label": "chat p90",
+            "recordField": "p90",
+            "sparklineSettings": {
+              "isVisible": false
+            },
+            "trend": {
+              "isVisible": false
+            }
+          }
+        }
+      },
+      "25": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize calls = count(), avgMs = avg(duration) / 1000000.0, p90Ms = percentile(duration, 90) / 1000000.0, errors = countIf(span.status_code == \"ERROR\"), by:{tool = `gen_ai.tool.name`}\n| fieldsAdd errPct = if(calls > 0, toDouble(errors) / calls * 100, else: 0.0)\n| sort calls desc",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Tool Performance (latency & error rate)",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "autoSelectVisualization": false
+        }
+      },
+      "26": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize count = count(), by:{reason = `gen_ai.response.finish_reasons`}\n| sort count desc",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Finish Reasons",
+        "type": "data",
+        "visualization": "pieChart",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "chartSettings": {
+            "legend": {
+              "position": "right"
+            }
+          },
+          "coloring": {
+            "colorRules": [
+              {
+                "colorMode": "color-palette",
+                "colorPalette": "purple-rain",
+                "comparator": "= *value*",
+                "field": "DT.name",
+                "type": "string",
+                "value": ""
+              }
+            ]
+          }
+        }
+      },
+      "27": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| fieldsAdd toolType = if(isNull(`gen_ai.tool.type`) or `gen_ai.tool.type` == \"\", \"builtin\", else: `gen_ai.tool.type`)\n| summarize calls = count(), by:{toolType}\n| sort calls desc",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Tool Calls by Name",
+        "type": "data",
+        "visualization": "donutChart",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "chartSettings": {
+            "legend": {
+              "position": "right"
+            }
+          },
+          "coloring": {
+            "colorRules": [
+              {
+                "colorMode": "color-palette",
+                "colorPalette": "purple-rain",
+                "comparator": "= *value*",
+                "field": "DT.name",
+                "type": "string",
+                "value": ""
+              }
+            ]
+          }
+        }
+      },
+      "28": {
+        "content": "### Delegation / A2A hops\nNo cross-agent delegation hop was emitted in the captured single-agent runs (consistent with ISI-1403 \u2014 local qwen3.6 rarely emits `delegate_to_persona`). **When delegation happens** it appears as an `execute_tool` span for the transfer tool + a client `POST` to the child agent\u2019s A2A task endpoint + the child\u2019s own `invoke_agent <child>` subtree on a linked trace. Build delegation panels on `invoke_agent` spans grouped by `gen_ai.agent.name` + trace linkage \u2014 there is no dedicated delegation metric. _ISI-1571 / ISI-1570 \u00a72.6._",
+        "type": "markdown"
+      },
+      "29": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch logs\n| filter k8s.cluster.name == \"observable-crewai\" and gen_ai.system == \"crewai\"\n| sort timestamp desc\n| fields timestamp, agent = `service.name`, content, trace_id, span_id\n| limit 200",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "GenAI Event Logs (trace-correlated)",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "autoSelectVisualization": false
+        }
+      },
+      "3": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize Tokens = sum(toLong(`gen_ai.usage.output_tokens`))",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Output Tokens",
+        "type": "data",
+        "visualization": "singleValue",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "singleValue": {
+            "label": "output tokens",
+            "recordField": "Tokens",
+            "sparklineSettings": {
+              "isVisible": false
+            },
+            "trend": {
+              "isVisible": false
+            }
+          }
+        }
+      },
+      "30": {
+        "content": "## GenAI Logs (trace-correlated)\n_CrewAI GenAI event logs (system `crewai`), pivot to trace via `trace_id`/`span_id`. Note: OTLP `EventName` is not ingested as a queryable field on this tenant; `timestamp` is correctly mapped._",
+        "type": "markdown"
+      },
+      "4": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\"\n| summarize Calls = countIf(`gen_ai.operation.name` == \"chat\")",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "LLM Calls",
+        "type": "data",
+        "visualization": "singleValue",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "singleValue": {
+            "label": "chat",
+            "recordField": "Calls",
+            "sparklineSettings": {
+              "isVisible": false
+            },
+            "trend": {
+              "isVisible": false
+            }
+          }
+        }
+      },
+      "5": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\"\n| summarize Calls = countIf(`gen_ai.operation.name` == \"execute_tool\")",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Tool Calls",
+        "type": "data",
+        "visualization": "singleValue",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "singleValue": {
+            "label": "execute_tool",
+            "recordField": "Calls",
+            "sparklineSettings": {
+              "isVisible": false
+            },
+            "trend": {
+              "isVisible": false
+            }
+          }
+        }
+      },
+      "6": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\"\n| summarize Conversations = countIf(startsWith(`span.name`, \"crew \"))",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Crew Runs",
+        "type": "data",
+        "visualization": "singleValue",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "singleValue": {
+            "label": "conversations",
+            "recordField": "Conversations",
+            "sparklineSettings": {
+              "isVisible": false
+            },
+            "trend": {
+              "isVisible": false
+            }
+          }
+        }
+      },
+      "7": {
+        "content": "## Token Economics",
+        "type": "markdown"
+      },
+      "8": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| makeTimeseries input = sum(toLong(`gen_ai.usage.input_tokens`)), output = sum(toLong(`gen_ai.usage.output_tokens`))",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Token Usage Over Time",
+        "type": "data",
+        "visualization": "lineChart",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "chartSettings": {
+            "legend": {
+              "position": "bottom"
+            }
+          },
+          "coloring": {
+            "colorRules": [
+              {
+                "colorMode": "color-palette",
+                "colorPalette": "purple-rain",
+                "comparator": "= *value*",
+                "field": "DT.name",
+                "type": "string",
+                "value": ""
+              }
+            ]
+          }
+        }
+      },
+      "9": {
+        "davis": {
+          "davisVisualization": {
+            "isAvailable": true
+          },
+          "enabled": false
+        },
+        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize input = sum(toLong(`gen_ai.usage.input_tokens`)), output = sum(toLong(`gen_ai.usage.output_tokens`))\n| fieldsAdd i = record(type = \"input\", tokens = input), o = record(type = \"output\", tokens = output)\n| fields arr = array(i, o)\n| expand arr\n| fields type = arr[type], tokens = arr[tokens]",
+        "querySettings": {
+          "defaultSamplingRatio": 10,
+          "defaultScanLimitGbytes": 500,
+          "enableSampling": false,
+          "maxResultMegaBytes": 100,
+          "maxResultRecords": 1000
+        },
+        "title": "Input vs Output Tokens",
+        "type": "data",
+        "visualization": "donutChart",
+        "visualizationSettings": {
+          "autoSelectVisualization": false,
+          "chartSettings": {
+            "legend": {
+              "position": "right"
+            }
+          },
+          "coloring": {
+            "colorRules": [
+              {
+                "colorMode": "color-palette",
+                "colorPalette": "purple-rain",
+                "comparator": "= *value*",
+                "field": "DT.name",
+                "type": "string",
+                "value": ""
+              }
+            ]
+          }
+        }
+      }
+    },
+    "variables": [],
+    "version": 21
+  }
+}

@@ -1,0 +1,15 @@
+# OpenTelemetry instrumentation for the CrewAI BMAD crew (ISI-1586).
+# Pinned to versions validated live against CrewAI 1.15.1 + Ollama qwen3.6.
+
+# --- PRIMARY path: native event-bus -> OTel listener (observability/instrumentation) ---
+# Live-validated. Lightweight: only the OTel SDK + OTLP exporter.
+opentelemetry-api==1.42.1
+opentelemetry-sdk==1.42.1
+opentelemetry-exporter-otlp-proto-grpc==1.42.1
+# For OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf instead of grpc:
+opentelemetry-exporter-otlp-proto-http==1.42.1
+
+# --- ALTERNATIVE path: OpenLIT auto-instrumentation (observability/instrument_openlit.py) ---
+# One-line init; pulls the OTel SDK transitively. Uncomment to use instead of the
+# native listener. Re-validate on your CrewAI version before relying on it.
+# openlit>=1.33.0
