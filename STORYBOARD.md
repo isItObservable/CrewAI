@@ -14,13 +14,20 @@ Part of the [isitobservable](https://isitobservable.io) series. Same shape and d
 - **Total runtime:** 25:00 across 11 scenes
 
 > **Accuracy notes for the recording (kagent discipline — cite real numbers, not ticket text):**
-> - The trace shape is fixed and verified: `crew.kickoff → <agent>.execute → chat qwen3.6`, 8 agents sequential.
-> - Signal names are exact from the OpenLIT/OTel contract: `gen_ai.usage.input_tokens` / `output_tokens`,
->   `gen_ai.request.model`, `gen_ai.client.token.usage`, `gen_ai.client.operation.duration`.
-> - **Per-run token totals and LLM p50/p90 latency are `⟨CAPTURE-AT-RECORD⟩`** — pull the live figures off the
->   Dynatrace dashboards (ISI-1586) during the take, exactly as the kagent Short cited `~9,968 tok/run`. Do **not**
->   invent a number in the storyboard; the VO lines below hedge ("a few thousand tokens a run") so they stay true
->   regardless of the captured value, then the on-screen dashboard shows the exact figure.
+> - The trace shape is fixed and **live-validated** (ISI-1586, 10/10 assertions vs a real CrewAI 1.15.1 crew):
+>   `crew <name> → task <name> → agent <role> → chat <model>` — 4 nested span levels, plus `tool <name>` spans
+>   under an agent when it calls a tool. For the BMAD crew that reads as `crew BmadCrew → task … → agent … →
+>   chat qwen3.6`, 8 agents sequential. (Earlier drafts showed `crew.kickoff → <agent>.execute`; the emitted span
+>   names are `crew`/`task`/`agent`/`chat` — use these on screen.)
+> - Signal names are exact from the live-validated OTel-GenAI contract: `gen_ai.system=crewai`,
+>   `gen_ai.operation.name` (`invoke_agent` / `chat` / `execute_tool`), `gen_ai.request.model`,
+>   `gen_ai.usage.input_tokens` / `output_tokens` / `total_tokens`, `gen_ai.agent.name`; metrics
+>   `gen_ai.client.token.usage` and `gen_ai.client.operation.duration` (histograms).
+> - **Per-run token totals and LLM p50/p90 latency are `⟨CAPTURE-AT-RECORD⟩`** — the ISI-1586 live validation ran a
+>   2-task smoke crew (asserts token *presence*, not magnitude), so no full 8-agent figure exists yet. Pull the live
+>   number off the Dynatrace dashboards during the take, exactly as the kagent Short cited `~9,968 tok/run`. Do
+>   **not** invent a number; the VO lines below hedge ("several thousand tokens a crew run" — robust from ~5k to the
+>   ~10k the comparable kagent crew burned) so they stay true regardless, then the on-screen dashboard shows exact.
 
 ---
 
@@ -46,8 +53,8 @@ Part of the [isitobservable](https://isitobservable.io) series. Same shape and d
 
 ## Scene 0 — Cold open: the hook (0:00–0:45)
 
-**On-screen:** Fast montage — the finished Dynatrace **trace waterfall** for one crew run (8 nested spans,
-`crew.kickoff` at the top), then the **Agentic Efficiency** dashboard tile showing tokens/run ticking up.
+**On-screen:** Fast montage — the finished Dynatrace **trace waterfall** for one crew run (the `crew` span at the
+top over its nested `task → agent → chat` spans), then the **Agentic Efficiency** dashboard tile showing tokens/run ticking up.
 Cut to a terminal mid-run with agent names streaming. Title card: **"CrewAI, observed."**
 
 **VO:**
@@ -207,24 +214,24 @@ uv run bmad-crew
 
 ## Scene 7 — See it in Dynatrace: traces, tokens, dashboards (16:45–19:15)
 
-**On-screen:** Dynatrace (`oat05854`). (1) The **distributed trace**: `crew.kickoff` root → 8 nested
-`<agent>.execute` → each wrapping a `chat qwen3.6` span. Hover an LLM span to reveal
+**On-screen:** Dynatrace (`oat05854`). (1) The **distributed trace**: the `crew` root → 8 nested
+`task → agent` pairs → each `agent` wrapping a `chat qwen3.6` span. Hover an LLM span to reveal
 `gen_ai.usage.input_tokens` / `output_tokens`. (2) The **CrewAI Agentic Efficiency** dashboard — tokens/run,
 **tokens per agent**, LLM latency p50/p90. (3) The **CrewAI Crew Health** dashboard — kickoff success rate,
 task duration by agent.
 
 **VO:**
-> "This is the payoff. One crew run, as a single distributed trace: `crew.kickoff` at the root, the eight agents
+> "This is the payoff. One crew run, as a single distributed trace: the `crew` span at the root, the eight agents
 > nested beneath in the exact order they ran, and inside each one the `chat qwen3.6` call. Hover any LLM span and
 > there are the tokens — input and output — the numbers we were blind to a minute ago.
 > Roll that up and you get the dashboards the observability build ships. **Agentic Efficiency**: tokens per run —
-> ⟨read the live figure — a few thousand tokens a crew⟩ — tokens *per agent* so you can see which persona is
+> ⟨read the live figure — several thousand tokens a crew run⟩ — tokens *per agent* so you can see which persona is
 > expensive, and LLM latency p50 and p90. And **Crew Health**: is the kickoff succeeding, and how long does each
 > agent's task take. You've gone from 'the agents did *something*' to a per-agent, per-token account of the whole
 > crew."
 
-> **[record-time]** substitute the bracketed hedge with the on-screen number, e.g. *"about four thousand tokens a
-> crew"* — value is `⟨CAPTURE-AT-RECORD⟩` off the Agentic Efficiency tile.
+> **[record-time]** substitute the bracketed hedge with the on-screen number, e.g. *"about ten thousand tokens a
+> crew"* — value is `⟨CAPTURE-AT-RECORD⟩` off the Agentic Efficiency tile (the comparable kagent crew ran ~10k).
 
 ---
 
