@@ -44,7 +44,12 @@ def init_observability() -> bool:
 
     openlit.init(
         application_name=os.getenv("OTEL_SERVICE_NAME", "bmad-crew"),
+        # deployment.environment resource attr — dashboards/filters key off this.
+        environment=os.getenv("OTEL_ENVIRONMENT", "observable-crewai"),
         otlp_endpoint=endpoint,
+        # GenAI metrics are the whole point (CrewAI is token-blind by default, ISI-1584) —
+        # make it explicit so a future OpenLIT default change can't silently drop them.
+        disable_metrics=False,
         # Capture prompts/completions as span content for the trace waterfall demo.
         # Set OPENLIT_CAPTURE_CONTENT=false to redact in sensitive environments.
         capture_message_content=os.getenv("OPENLIT_CAPTURE_CONTENT", "true").lower()
