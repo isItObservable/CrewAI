@@ -1,11 +1,11 @@
 """
 CrewAI -> OpenTelemetry instrumentation (OTel GenAI semantic conventions).
 
-Why this exists (see ISI-1584 research):
+Why this exists (see the telemetry-gap research):
   * CrewAI 1.15.x ships NO OTLP metrics and, by default, only two coarse spans
     (Crew.kickoff, Task._execute_core). The OpenInference instrumentor can add an
     LLM span but tags it with `llm.token_count.*` (OpenInference semconv), NOT the
-    `gen_ai.*` OpenTelemetry GenAI semconv that Dynatrace (oat05854) reads natively.
+    `gen_ai.*` OpenTelemetry GenAI semconv that Dynatrace (<your-tenant>) reads natively.
   * The richest, most reliable telemetry source in CrewAI is its native event bus
     (`crewai.events.crewai_event_bus`): LLMCallCompletedEvent carries real token
     usage {prompt_tokens, completion_tokens, total_tokens}, finish_reason, model.
@@ -26,7 +26,7 @@ with its parent passed explicitly. This yields a correct crew -> task -> agent -
 "current agent" pointer is best-effort (documented limitation).
 
 This module is the reference implementation for the upstream contribution scoped in
-ISI-1584 (a first-party OTel-GenAI exporter over the CrewAI event bus).
+a first-party OTel-GenAI exporter over the CrewAI event bus).
 """
 from __future__ import annotations
 

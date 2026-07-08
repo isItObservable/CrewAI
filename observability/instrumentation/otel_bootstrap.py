@@ -2,7 +2,7 @@
 OpenTelemetry SDK bootstrap for the CrewAI BMAD crew.
 
 Wires TracerProvider + MeterProvider + LoggerProvider with OTLP exporters that
-point at the OpenTelemetry Collector (which forwards to Dynatrace, oat05854).
+point at the OpenTelemetry Collector (which forwards to Dynatrace, <your-tenant>).
 All endpoints/headers come from the standard OTEL_* environment variables so the
 same code runs locally, in Docker, and in Kubernetes with no edits:
 

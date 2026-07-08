@@ -2,7 +2,7 @@
 
 A follow-along, host-runnable tutorial. Every step is a command you can paste. Baseline:
 **CrewAI 1.15.1**, Python 3.10–3.12, local **qwen3.6** via Ollama at
-`http://10.0.0.185:11434`. Substitute your own Ollama host/model where noted.
+`http://<your-ollama-host>:11434`. Substitute your own Ollama host/model where noted.
 
 > CrewAI moves fast. This tutorial is pinned to **1.15.1**. If you bump the version,
 > re-verify the decorator import path (`crewai.project`) and the LLM/Ollama env names.
@@ -15,7 +15,7 @@ A follow-along, host-runnable tutorial. Every step is a command you can paste. B
 python3 --version           # 3.10 – 3.12
 pip install uv              # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 # Confirm the model is reachable and pulled on your Ollama host:
-curl http://10.0.0.185:11434/api/tags | grep qwen3.6
+curl http://<your-ollama-host>:11434/api/tags | grep qwen3.6
 # (If missing:  ollama pull qwen3.6  on the Ollama host.)
 ```
 
@@ -41,7 +41,7 @@ crewai version               # expect 1.15.1
 
 ```bash
 cp .env.example .env
-# .env already points MODEL=ollama/qwen3.6 and OLLAMA_BASE_URL=http://10.0.0.185:11434
+# .env already points MODEL=ollama/qwen3.6 and OLLAMA_BASE_URL=http://<your-ollama-host>:11434
 ```
 
 The crew builds one shared `LLM` from these env vars (`crew.py: build_llm()`), so every
@@ -99,7 +99,7 @@ cat output/qa_report.md
 
 ## 5. Add observability (OpenTelemetry → Dynatrace)
 
-CrewAI is **trace-rich but token-blind by default** (research: ISI-1584). We use
+CrewAI is **trace-rich but token-blind by default**. We use
 **OpenLIT** to emit `gen_ai.*` spans and GenAI metrics. It's already wired in
 `observability.py` and initialised at startup — you just point it at a collector:
 
@@ -112,7 +112,7 @@ uv run bmad-crew
 
 Leave `OTEL_EXPORTER_OTLP_ENDPOINT` unset to run without telemetry (no crash).
 `OTEL_SDK_DISABLED=true` is the hard off-switch. The Collector → Dynatrace pipeline and
-the dashboards are built in **ISI-1586**; see [`observability/README.md`](./observability/README.md).
+the dashboards live in [`observability/README.md`](./observability/README.md).
 
 ---
 
@@ -125,7 +125,7 @@ cd ..                                        # back to CrewAI/
 docker build -t ghcr.io/isitobservable/bmad-crew:1.0.0 .
 # Smoke-test the service locally:
 docker run --rm -p 8000:8000 \
-  -e OLLAMA_BASE_URL=http://10.0.0.185:11434 \
+  -e OLLAMA_BASE_URL=http://<your-ollama-host>:11434 \
   ghcr.io/isitobservable/bmad-crew:1.0.0
 curl localhost:8000/healthz
 ```
@@ -139,7 +139,58 @@ docker push ghcr.io/isitobservable/bmad-crew:1.0.0
 
 ---
 
-## 7. Deploy to Kubernetes
+## 7. Provision a Kubernetes cluster
+
+Steps 8–9 need a cluster you can `kubectl apply` to. If you already have one,
+skip ahead. Otherwise pick one of these two paths — both are documented in full,
+with every environment-specific value (node names, IPs, project id) as a
+**variable you supply**, in **[`docs/cluster-setup.md`](./docs/cluster-setup.md)**.
+
+### Option A — Cluster API on Proxmox (what we use)
+
+We provision our tutorial clusters declaratively with [Cluster
+API](https://cluster-api.sigs.k8s.io/) on a Proxmox homelab. Nothing about our
+network is baked in: you describe **your** Proxmox node, template, and free IP
+ranges in a `values.env` file, render the manifests, and apply them.
+
+```bash
+# See docs/cluster-setup.md for the full walkthrough. In short:
+#   1. copy the example config and set YOUR values (no defaults leak through):
+#        cp -r clusters/example-cluster clusters/my-cluster
+#        $EDITOR clusters/my-cluster/values.env   # source_node, template_id, vip, IP pools
+#   2. render + apply against your CAPI management cluster:
+#        render.sh my-cluster && kubectl apply -k clusters/my-cluster/
+```
+
+> The reusable CAPI manifests + render tooling live in the companion
+> [proxmox-clusters](https://github.com/henrikrexed/proxmox-clusters) repo.
+> `docs/cluster-setup.md` explains exactly which variables to set and how to
+> discover free IPs on your LAN.
+
+### Option B — Google Kubernetes Engine (managed, no homelab needed)
+
+Don't have Proxmox? Stand up a managed cluster in one command:
+
+```bash
+gcloud container clusters create-auto bmad-crew \
+  --project <your-gcp-project> --region <your-region>
+gcloud container clusters get-credentials bmad-crew --region <your-region>
+kubectl get nodes
+```
+
+On GKE, a `Service` of `type: LoadBalancer` gets a cloud IP automatically — so
+you can skip any MetalLB add-on. Full `gcloud`/Terraform steps and the (few)
+manifest differences are in [`docs/cluster-setup.md`](./docs/cluster-setup.md).
+
+> **Ollama reachability (both paths).** The crew calls your Ollama host over the
+> network. Make sure pods in the cluster can reach `OLLAMA_BASE_URL`
+> (`k8s/configmap.yaml`) — a homelab cluster reaches a LAN Ollama directly; from
+> GKE you'll need the Ollama host reachable from the cluster (VPN, public
+> endpoint, or run Ollama in-cluster).
+
+---
+
+## 8. Deploy to Kubernetes
 
 ```bash
 # Point OLLAMA_BASE_URL / image / OTLP endpoint to your environment first
@@ -155,15 +206,15 @@ kubectl -n bmad-crew rollout status deploy/bmad-crew
 ```
 
 **Two things that bite in k8s (from the research):**
-1. **Egress to Ollama.** Pods must reach `http://10.0.0.185:11434`. Confirm routing from
-   the cluster (owned by ProxOps in ISI-1588). If the model is unreachable, `/kickoff`
+1. **Egress to Ollama.** Pods must reach `http://<your-ollama-host>:11434`. Confirm routing from
+   the cluster. If the model is unreachable, `/kickoff`
    will hang on the first LLM call.
 2. **Memory persistence.** CrewAI memory (LanceDB) is on local disk and ephemeral in a
    pod — the `PVC` mounts it at `/app/.crewai`. Only relevant if you enable `memory=True`.
 
 ---
 
-## 8. Run and verify
+## 9. Run and verify
 
 ```bash
 kubectl -n bmad-crew port-forward svc/bmad-crew 8080:80 &
@@ -176,8 +227,7 @@ Then confirm telemetry landed:
 
 - **Traces** — a `crew.kickoff → <agent>.execute → chat qwen3.6` waterfall per run.
 - **Metrics/tokens** — `gen_ai.usage.input_tokens` / `output_tokens` per LLM call,
-  aggregated into tokens/run and tokens-per-agent (dashboards in ISI-1586, Dynatrace
-  tenant `oat05854`).
+  aggregated into tokens/run and tokens-per-agent.
 - **Logs** — agent/task lifecycle.
 
 If tokens don't appear: OpenLIT isn't initialised (check the startup line in step 5),

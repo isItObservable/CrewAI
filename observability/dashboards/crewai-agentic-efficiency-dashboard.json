@@ -197,7 +197,7 @@
     },
     "tiles": {
       "0": {
-        "content": "# \ud83e\udd16 CrewAI \u2014 Agentic Efficiency\nToken economics, LLM calls & tool invocations for the **observable-crewai** CrewAI crew (self-hosted qwen3.6 on the Mac Studio). Signals: `gen_ai.usage.*`, `gen_ai.operation.name`, `gen_ai.tool.name` \u2014 OTLP spans \u2192 Dynatrace. _ISI-1544 / ISI-1539._",
+        "content": "# \ud83e\udd16 CrewAI \u2014 Agentic Efficiency\nToken economics, LLM calls & tool invocations for the **observable-crewai** CrewAI crew (self-hosted qwen3.6 on the Mac Studio). Signals: `gen_ai.usage.*`, `gen_ai.operation.name`, `gen_ai.tool.name` \u2014 OTLP spans \u2192 Dynatrace.",
         "type": "markdown"
       },
       "1": {
@@ -523,7 +523,7 @@
         }
       },
       "20": {
-        "content": "## Efficiency KPIs & Tool Quality \u2014 ISI-1571 additions\nCost/throughput KPIs and tool reliability derived from spans. Signals: tokens-per-run, tool latency & `isError` rate, run/LLM latency percentiles, finish reasons, MCP-vs-builtin tool split. _ISI-1571 / ISI-1570._",
+        "content": "## Efficiency KPIs & Tool Quality additions\nCost/throughput KPIs and tool reliability derived from spans. Signals: tokens-per-run, tool latency & `isError` rate, run/LLM latency percentiles, finish reasons, MCP-vs-builtin tool split.",
         "type": "markdown"
       },
       "21": {
@@ -755,7 +755,7 @@
         }
       },
       "28": {
-        "content": "### Delegation / A2A hops\nNo cross-agent delegation hop was emitted in the captured single-agent runs (consistent with ISI-1403 \u2014 local qwen3.6 rarely emits `delegate_to_persona`). **When delegation happens** it appears as an `execute_tool` span for the transfer tool + a client `POST` to the child agent\u2019s A2A task endpoint + the child\u2019s own `invoke_agent <child>` subtree on a linked trace. Build delegation panels on `invoke_agent` spans grouped by `gen_ai.agent.name` + trace linkage \u2014 there is no dedicated delegation metric. _ISI-1571 / ISI-1570 \u00a72.6._",
+        "content": "### Delegation / A2A hops\nNo cross-agent delegation hop was emitted in the captured single-agent runs (consistent with local qwen3.6 rarely emits `delegate_to_persona`). **When delegation happens** it appears as an `execute_tool` span for the transfer tool + a client `POST` to the child agent\u2019s A2A task endpoint + the child\u2019s own `invoke_agent <child>` subtree on a linked trace. Build delegation panels on `invoke_agent` spans grouped by `gen_ai.agent.name` + trace linkage \u2014 there is no dedicated delegation metric.",
         "type": "markdown"
       },
       "29": {

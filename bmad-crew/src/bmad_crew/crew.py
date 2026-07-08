@@ -27,7 +27,7 @@ def build_llm() -> LLM:
     """
     return LLM(
         model=os.getenv("MODEL", "ollama/qwen3.6"),
-        base_url=os.getenv("OLLAMA_BASE_URL", "http://10.0.0.185:11434"),
+        base_url=os.getenv("OLLAMA_BASE_URL", "http://<your-ollama-host>:11434"),
         temperature=float(os.getenv("MODEL_TEMPERATURE", "0.4")),
     )
 

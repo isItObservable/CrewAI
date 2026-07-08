@@ -1,7 +1,7 @@
 # BMAD crew — task definitions (CrewAI v1.15.1)
 # One task per hand-off. The pipeline is linear (Process.sequential); each task's
 # `context` lists the upstream tasks whose outputs feed it. This is the "clean linear
-# span tree" the observability build (ISI-1586) instruments.
+# span tree" the observability build instruments.
 #
 #   analyst -> pm -> ux -> po -> architect -> sm -> dev -> qa
 #

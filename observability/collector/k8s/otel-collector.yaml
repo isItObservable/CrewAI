@@ -1,18 +1,18 @@
 # Standalone OpenTelemetry Collector for the CrewAI BMAD-crew episode cluster.
 # Receives OTLP (traces + metrics + logs) from the CrewAI service and exports to
-# Dynatrace oat05854 (/api/v2/otlp). ISI-1586 (child of ISI-1582), consistent
+# Dynatrace <your-tenant> (/api/v2/otlp), consistent
 # with the kagent/Sympozium episodes.
 #
 # The CrewAI app -> collector hop is header-less gRPC/HTTP; the collector injects
 # the Dynatrace Api-Token so the app never holds the DT credential.
 # Requires Secret `dynatrace` in ns `crewai`:
-#   dynatrace_oltp_url  (e.g. https://oat05854.live.dynatrace.com)
+#   dynatrace_oltp_url  (e.g. https://<your-tenant>.live.dynatrace.com)
 #   dt_api_token        (Api-Token with openTelemetryTrace.ingest, metrics.ingest, logs.ingest)
 #
 # Deploy:
 #   kubectl create ns crewai
 #   kubectl -n crewai create secret generic dynatrace \
-#     --from-literal=dynatrace_oltp_url=https://oat05854.live.dynatrace.com \
+#     --from-literal=dynatrace_oltp_url=https://<your-tenant>.live.dynatrace.com \
 #     --from-literal=dt_api_token=dt0c01.XXXX
 #   kubectl apply -f otel-collector.yaml
 apiVersion: v1

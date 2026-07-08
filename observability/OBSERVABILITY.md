@@ -2,20 +2,20 @@
 
 This section shows how to make the CrewAI BMAD crew **fully observable** with
 OpenTelemetry — traces, metrics, and logs — and read the result in Dynatrace.
-It is the observability track of the CrewAI episode (ISI-1582); the telemetry
-gap analysis behind these choices is in the research doc (ISI-1584).
+It is the observability track of the CrewAI episode; the telemetry
+gap analysis behind these choices is in the research doc.
 
 > **TL;DR** — CrewAI 1.15 emits rich internal *events* but, out of the box, **no
 > OTLP metrics** and only two coarse spans, tagged with the wrong semantic
 > convention for Dynatrace. We close that with a small event-bus → OpenTelemetry
 > listener that emits standards-compliant `gen_ai.*` spans + metrics + logs, then
-> route them through an OTel Collector to Dynatrace (oat05854).
+> route them through an OTel Collector to Dynatrace (<your-tenant>).
 
 ---
 
 ## 1. Why CrewAI needs help here
 
-CrewAI has three telemetry surfaces (validated live on CrewAI 1.15.1, ISI-1584):
+CrewAI has three telemetry surfaces:
 
 | Surface | What it is | Verdict |
 |---|---|---|
@@ -32,7 +32,7 @@ Dynatrace reads natively. CrewAI 1.15 also dropped its `litellm` dependency, so 
 
 **Our approach:** subscribe to the native event bus and emit correct `gen_ai.*`
 telemetry ourselves. This is vendor-neutral, needs no CrewAI code changes, and
-doubles as the reference implementation for the upstream contribution (ISI-1584).
+doubles as the reference implementation for the upstream contribution.
 
 ---
 
@@ -41,7 +41,7 @@ doubles as the reference implementation for the upstream contribution (ISI-1584)
 ```
   ┌──────────────────────────┐   OTLP (gRPC/HTTP)   ┌───────────────────┐   /api/v2/otlp
   │  CrewAI BMAD crew        │ ───────────────────▶ │  OTel Collector   │ ─────────────▶  Dynatrace
-  │  + crewai_otel listener  │   traces/metrics/logs│  (contrib)        │   Api-Token     (oat05854)
+  │  + crewai_otel listener  │   traces/metrics/logs│  (contrib)        │   Api-Token     (<your-tenant>)
   └──────────────────────────┘                      └───────────────────┘
         gen_ai.* spans                                memory_limiter → … → batch
         gen_ai.client.token.usage
@@ -124,7 +124,7 @@ The collector holds the Dynatrace Api-Token so the app never does.
 
 ```bash
 docker run --rm -p 4317:4317 -p 4318:4318 \
-  -e DT_ENDPOINT=https://oat05854.live.dynatrace.com \
+  -e DT_ENDPOINT=https://<your-tenant>.live.dynatrace.com \
   -e DT_API_TOKEN=dt0c01.XXXX \
   -v $(pwd)/observability/collector/otel-collector-config.yaml:/conf/collector.yaml \
   otel/opentelemetry-collector-contrib:0.154.0 --config=/conf/collector.yaml
@@ -135,7 +135,7 @@ docker run --rm -p 4317:4317 -p 4318:4318 \
 ```bash
 kubectl create ns crewai
 kubectl -n crewai create secret generic dynatrace \
-  --from-literal=dynatrace_oltp_url=https://oat05854.live.dynatrace.com \
+  --from-literal=dynatrace_oltp_url=https://<your-tenant>.live.dynatrace.com \
   --from-literal=dt_api_token=dt0c01.XXXX
 kubectl apply -f observability/collector/k8s/otel-collector.yaml
 ```
@@ -183,7 +183,7 @@ crew runs locally or in Kubernetes. Infra/log tiles filter on the
 > were validated live against this same Dynatrace tenant, with attribute names
 > adapted to CrewAI (`chat` op, `gen_ai.agent.name` grouping, `span.status_code`
 > for tool errors). **Re-validate against live data once the crew is deployed**
-> (cluster provisioning is ISI-1588).
+>.
 
 ---
 
@@ -205,7 +205,7 @@ crew runs locally or in Kubernetes. Infra/log tiles filter on the
 ## 7. Upstream contribution (tracing gap)
 
 Because CrewAI ships no first-party OTel/GenAI exporter, this listener is the seed
-for an upstream contribution (parent ISI-1582's ask):
+for an upstream contribution:
 
 - **Gap A (fast):** `Arize-ai/openinference` — make the CrewAI instrumentor emit
   LLM + tool spans by default and drop the dead `litellm` hook.

@@ -1,4 +1,4 @@
-# OpenTelemetry instrumentation for the CrewAI BMAD crew (ISI-1586).
+# OpenTelemetry instrumentation for the CrewAI BMAD crew.
 # Pinned to versions validated live against CrewAI 1.15.1 + Ollama qwen3.6.
 
 # --- PRIMARY path: native event-bus -> OTel listener (observability/instrumentation) ---

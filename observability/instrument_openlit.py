@@ -1,14 +1,14 @@
 """
 CrewAI → OpenTelemetry (GenAI semconv) bootstrap for the isItObservable tutorial.
 
-WHY OpenLIT (see ISI-1584 research):
+WHY OpenLIT (see the telemetry-gap research):
   CrewAI 1.15.1 is trace-rich but *token-blind by default* and emits NO OTLP
   metrics. The OpenInference default instrumentor only wraps Crew.kickoff /
   Task._execute_core and uses its own `llm.token_count.*` namespace — which
   Dynatrace does NOT model natively. OpenLIT auto-instruments CrewAI + the
   underlying LiteLLM/Ollama calls and emits OTel **GenAI semantic conventions**
   (`gen_ai.*`) as BOTH spans and metrics, so telemetry drops straight into
-  Dynatrace (oat05854) with no remap and gives us the metrics we otherwise lack.
+  Dynatrace (<your-tenant>) with no remap and gives us the metrics we otherwise lack.
 
 This is the ALTERNATIVE "easy button". The PRIMARY, live-validated path is the
 native event-bus listener in observability/instrumentation/ (see OBSERVABILITY.md).
@@ -46,11 +46,11 @@ def init_observability(
       OTEL_EXPORTER_OTLP_ENDPOINT       collector endpoint (default: local gateway)
       CREWAI_DISABLE_TELEMETRY          forced true — kills the hardcoded
                                         telemetry.crewai.com anonymous analytics
-                                        (unusable, and noisy). See ISI-1584.
+                                        (unusable, and noisy).
       OTEL_SDK_DISABLED                 set "true" to no-op (tests / offline).
     """
     # Kill CrewAI's hardcoded anonymous analytics to telemetry.crewai.com.
-    # It is not routable to our backend and only adds egress noise (ISI-1584).
+    # It is not routable to our backend and only adds egress noise.
     os.environ.setdefault("CREWAI_DISABLE_TELEMETRY", "true")
     # Belt-and-suspenders: also silence the OSS "share crew" prompt.
     os.environ.setdefault("OTEL_PYTHON_LOG_CORRELATION", "true")
@@ -80,7 +80,7 @@ def init_observability(
         otlp_endpoint=endpoint,
         # Capture prompts/completions as span events. Scrub PII downstream in
         # the collector (transform/pii) before it reaches Dynatrace. Env-var name
-        # matches the ISI-1585 app-side observability.py off-switch.
+        # matches the app-side observability.py off-switch.
         capture_message_content=os.getenv("OPENLIT_CAPTURE_CONTENT", "true").lower()
         == "true",
         disable_metrics=False,  # we WANT the GenAI metrics OpenLIT adds

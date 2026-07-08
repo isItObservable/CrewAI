@@ -1,12 +1,12 @@
 # Standalone OpenTelemetry Collector config for LOCAL / Docker Compose runs of the
-# CrewAI BMAD crew (no Kubernetes). Routes OTLP -> Dynatrace oat05854.
+# CrewAI BMAD crew (no Kubernetes). Routes OTLP -> Dynatrace <your-tenant>.
 #
 # RULE: no k8sattributes / no resourcedetection(k8s) here — this is the non-k8s
 # path. memory_limiter is first, batch is last.
 #
 # Run:
 #   docker run --rm -p 4317:4317 -p 4318:4318 \
-#     -e DT_ENDPOINT=https://oat05854.live.dynatrace.com \
+#     -e DT_ENDPOINT=https://<your-tenant>.live.dynatrace.com \
 #     -e DT_API_TOKEN=dt0c01.XXXX \
 #     -v $(pwd)/otel-collector-config.yaml:/conf/collector.yaml \
 #     otel/opentelemetry-collector-contrib:0.154.0 --config=/conf/collector.yaml

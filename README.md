@@ -19,8 +19,9 @@ It is a **follow-along tutorial**, in the same shape as our
 | 3. Run locally | `uv run bmad-crew` → a full PRD→architecture→stories→code→QA run |
 | 4. Instrument | OpenLIT emits `gen_ai.*` spans + GenAI metrics (CrewAI is token-blind by default) |
 | 5. Containerize | Dockerfile → image |
-| 6. Deploy to k8s | Deployment/Service/ConfigMap/Secret/PVC + a kickoff API |
-| 7. Verify | tokens + trace waterfall land in Dynatrace |
+| 6. Provision a cluster | Cluster API on Proxmox **or** GKE — your choice ([`docs/cluster-setup.md`](./docs/cluster-setup.md)) |
+| 7. Deploy to k8s | Deployment/Service/ConfigMap/Secret/PVC + a kickoff API |
+| 8. Verify | tokens + trace waterfall land in Dynatrace |
 
 ## Repository layout
 
@@ -40,7 +41,9 @@ CrewAI/
 │       ├── server.py            # FastAPI /kickoff for k8s
 │       └── observability.py     # OpenLIT OTel init (import-safe)
 ├── k8s/                      # namespace, configmap, secret, pvc, deployment, service, hpa, otel-collector
-└── observability/           # alignment contract with the dashboards build (ISI-1586)
+├── docs/
+│   └── cluster-setup.md      # provision a cluster: Cluster API on Proxmox OR GKE
+└── observability/           # alignment contract with the dashboards build
 ```
 
 ## Why CrewAI here
@@ -59,5 +62,7 @@ straight into Dynatrace. See [`observability/README.md`](./observability/README.
 ## Requirements
 
 - Python 3.10–3.12, [`uv`](https://docs.astral.sh/uv/)
-- Network reach to an Ollama host with a `qwen3.6` tag (we use `10.0.0.185:11434`)
-- (Deploy) a Kubernetes cluster + registry; (observe) an OTel Collector → Dynatrace
+- Network reach to an Ollama host with a `qwen3.6` tag (set `OLLAMA_BASE_URL` to yours)
+- (Deploy) a Kubernetes cluster + registry — don't have one? See
+  [`docs/cluster-setup.md`](./docs/cluster-setup.md) (Cluster API on Proxmox or GKE);
+  (observe) an OTel Collector → Dynatrace

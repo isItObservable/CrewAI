@@ -185,7 +185,7 @@
     },
     "tiles": {
       "0": {
-        "content": "# \ud83e\ude7a CrewAI \u2014 Health & Availability\nComponent, operator & agent health for the **observable-crewai** cluster: Kubernetes workload state (DynaKube), agent-service RED metrics, agent-run success & logs. _ISI-1544 / ISI-1539._",
+        "content": "# \ud83e\ude7a CrewAI \u2014 Health & Availability\nComponent, operator & agent health for the **observable-crewai** cluster: Kubernetes workload state (DynaKube), agent-service RED metrics, agent-run success & logs.",
         "type": "markdown"
       },
       "1": {
@@ -572,7 +572,7 @@
         }
       },
       "22": {
-        "content": "## Engine & Run Health (span-derived) \u2014 ISI-1571 additions\nCrewAI emits **no OTLP metrics**, so these engine-liveness & run-quality panels are derived from `gen_ai.*` / A2A spans. _ISI-1571 / ISI-1570._",
+        "content": "## Engine & Run Health (span-derived) additions\nCrewAI emits **no OTLP metrics**, so these engine-liveness & run-quality panels are derived from `gen_ai.*` / A2A spans.",
         "type": "markdown"
       },
       "23": {

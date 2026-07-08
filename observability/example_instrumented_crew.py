@@ -1,7 +1,7 @@
 """
 Minimal reference: wire OpenTelemetry into a CrewAI crew in two lines.
 
-This is the exact seam the BMAD crew (ISI-1585) uses. Drop these two calls at the
+This is the exact seam the BMAD crew uses. Drop these two calls at the
 top of your entrypoint (main.py / server.py), BEFORE building or kicking off the
 crew. Everything else is your normal CrewAI code.
 
@@ -23,7 +23,7 @@ instrument_crewai()
 # ---- your normal crew below ------------------------------------------------
 from crewai import Agent, Task, Crew, LLM, Process
 
-llm = LLM(model="ollama/qwen3.6:latest", base_url="http://10.0.0.185:11434")
+llm = LLM(model="ollama/qwen3.6:latest", base_url="http://<your-ollama-host>:11434")
 
 analyst = Agent(role="Analyst", goal="Analyze the request into a crisp brief.",
                 backstory="A meticulous business analyst.", llm=llm)
