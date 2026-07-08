@@ -211,7 +211,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize tokens = sum(toLong(`gen_ai.usage.input_tokens`)) + sum(toLong(`gen_ai.usage.output_tokens`)), by:{`gen_ai.agent.name`}\n| sort tokens desc",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize tokens = sum(coalesce(toLong(`gen_ai.usage.input_tokens`), toLong(`gen_ai.usage.prompt_tokens`))) + sum(coalesce(toLong(`gen_ai.usage.output_tokens`), toLong(`gen_ai.usage.completion_tokens`))), by:{`gen_ai.agent.name`}\n| sort tokens desc",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -250,7 +250,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize tokens = sum(toLong(`gen_ai.usage.input_tokens`)) + sum(toLong(`gen_ai.usage.output_tokens`)), by:{`gen_ai.request.model`}\n| sort tokens desc",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize tokens = sum(coalesce(toLong(`gen_ai.usage.input_tokens`), toLong(`gen_ai.usage.prompt_tokens`))) + sum(coalesce(toLong(`gen_ai.usage.output_tokens`), toLong(`gen_ai.usage.completion_tokens`))), by:{model = coalesce(`gen_ai.request.model`, `gen_ai.response.model`)}\n| sort tokens desc",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -293,7 +293,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and isNotNull(`gen_ai.operation.name`)\n| makeTimeseries ops = count(), by:{`gen_ai.operation.name`}",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and isNotNull(`gen_ai.operation.name`)\n| makeTimeseries ops = count(), by:{`gen_ai.operation.name`}",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -332,7 +332,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize avgMs = avg(duration) / 1000000.0, by:{`gen_ai.agent.name`}\n| sort avgMs desc",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize avgMs = avg(duration) / 1000000.0, by:{`gen_ai.agent.name`}\n| sort avgMs desc",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -371,7 +371,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize calls = count(), by:{`gen_ai.tool.name`}\n| sort calls desc",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize calls = count(), by:{`gen_ai.tool.name`}\n| sort calls desc",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -410,7 +410,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize calls = count(), by:{`gen_ai.agent.name`}\n| sort calls desc",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize calls = count(), by:{`gen_ai.agent.name`}\n| sort calls desc",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -453,7 +453,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and in(`gen_ai.operation.name`, \"chat\", \"execute_tool\")\n| summarize llmCalls = countIf(`gen_ai.operation.name` == \"chat\"), toolCalls = countIf(`gen_ai.operation.name` == \"execute_tool\"), inputTokens = sum(toLong(`gen_ai.usage.input_tokens`)), outputTokens = sum(toLong(`gen_ai.usage.output_tokens`)), by:{agent = `gen_ai.agent.name`}\n| filter isNotNull(agent)\n| sort inputTokens desc",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and in(`gen_ai.operation.name`, \"chat\", \"execute_tool\")\n| summarize llmCalls = countIf(`gen_ai.operation.name` == \"chat\"), toolCalls = countIf(`gen_ai.operation.name` == \"execute_tool\"), inputTokens = sum(coalesce(toLong(`gen_ai.usage.input_tokens`), toLong(`gen_ai.usage.prompt_tokens`))), outputTokens = sum(coalesce(toLong(`gen_ai.usage.output_tokens`), toLong(`gen_ai.usage.completion_tokens`))), by:{agent = `gen_ai.agent.name`}\n| filter isNotNull(agent)\n| sort inputTokens desc",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -475,7 +475,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and isNotNull(`gen_ai.operation.name`)\n| sort timestamp desc\n| fields timestamp, agent = `gen_ai.agent.name`, operation = `gen_ai.operation.name`, tool = `gen_ai.tool.name`, model = `gen_ai.request.model`, inTok = `gen_ai.usage.input_tokens`, outTok = `gen_ai.usage.output_tokens`\n| limit 100",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and isNotNull(`gen_ai.operation.name`)\n| sort timestamp desc\n| fields timestamp, agent = `gen_ai.agent.name`, operation = `gen_ai.operation.name`, tool = `gen_ai.tool.name`, model = coalesce(`gen_ai.request.model`, `gen_ai.response.model`), inTok = coalesce(`gen_ai.usage.input_tokens`, `gen_ai.usage.prompt_tokens`), outTok = coalesce(`gen_ai.usage.output_tokens`, `gen_ai.usage.completion_tokens`)\n| limit 100",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -497,7 +497,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize Tokens = sum(toLong(`gen_ai.usage.input_tokens`))",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize Tokens = sum(coalesce(toLong(`gen_ai.usage.input_tokens`), toLong(`gen_ai.usage.prompt_tokens`)))",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -533,7 +533,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and (`gen_ai.operation.name` == \"chat\" or `gen_ai.operation.name` == \"invoke_agent\")\n| summarize tok = sum(toLong(`gen_ai.usage.input_tokens`)) + sum(toLong(`gen_ai.usage.output_tokens`)), runs = countIf(`gen_ai.operation.name` == \"invoke_agent\")\n| fieldsAdd TokensPerRun = if(runs > 0, toDouble(tok) / runs, else: 0.0)\n| fields TokensPerRun",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and (`gen_ai.operation.name` == \"chat\" or `gen_ai.operation.name` == \"invoke_agent\")\n| summarize tok = sum(coalesce(toLong(`gen_ai.usage.input_tokens`), toLong(`gen_ai.usage.prompt_tokens`))) + sum(coalesce(toLong(`gen_ai.usage.output_tokens`), toLong(`gen_ai.usage.completion_tokens`))), runs = countIf(`gen_ai.operation.name` == \"invoke_agent\")\n| fieldsAdd TokensPerRun = if(runs > 0, toDouble(tok) / runs, else: 0.0)\n| fields TokensPerRun",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -565,7 +565,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize total = count(), errors = countIf(span.status_code == \"ERROR\")\n| fieldsAdd ErrPct = if(total > 0, toDouble(errors) / total * 100, else: 0.0)\n| fields ErrPct",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize total = count(), errors = countIf(span.status_code == \"ERROR\")\n| fieldsAdd ErrPct = if(total > 0, toDouble(errors) / total * 100, else: 0.0)\n| fields ErrPct",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -597,7 +597,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize p90 = percentile(duration, 90) / 1000000000.0",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize p90 = percentile(duration, 90) / 1000000000.0",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -629,7 +629,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize p90 = percentile(duration, 90) / 1000000000.0",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize p90 = percentile(duration, 90) / 1000000000.0",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -661,7 +661,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize calls = count(), avgMs = avg(duration) / 1000000.0, p90Ms = percentile(duration, 90) / 1000000.0, errors = countIf(span.status_code == \"ERROR\"), by:{tool = `gen_ai.tool.name`}\n| fieldsAdd errPct = if(calls > 0, toDouble(errors) / calls * 100, else: 0.0)\n| sort calls desc",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize calls = count(), avgMs = avg(duration) / 1000000.0, p90Ms = percentile(duration, 90) / 1000000.0, errors = countIf(span.status_code == \"ERROR\"), by:{tool = `gen_ai.tool.name`}\n| fieldsAdd errPct = if(calls > 0, toDouble(errors) / calls * 100, else: 0.0)\n| sort calls desc",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -683,7 +683,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize count = count(), by:{reason = `gen_ai.response.finish_reasons`}\n| sort count desc",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize count = count(), by:{reason = `gen_ai.response.finish_reasons`}\n| sort count desc",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -722,7 +722,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| fieldsAdd toolType = if(isNull(`gen_ai.tool.type`) or `gen_ai.tool.type` == \"\", \"builtin\", else: `gen_ai.tool.type`)\n| summarize calls = count(), by:{toolType}\n| sort calls desc",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| fieldsAdd toolType = if(isNull(`gen_ai.tool.type`) or `gen_ai.tool.type` == \"\", \"builtin\", else: `gen_ai.tool.type`)\n| summarize calls = count(), by:{toolType}\n| sort calls desc",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -765,7 +765,7 @@
           },
           "enabled": false
         },
-        "query": "fetch logs\n| filter k8s.cluster.name == \"observable-crewai\" and gen_ai.system == \"crewai\"\n| sort timestamp desc\n| fields timestamp, agent = `service.name`, content, trace_id, span_id\n| limit 200",
+        "query": "fetch logs\n| filter k8s.cluster.name == \"observable-crewai\" and coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\"\n| sort timestamp desc\n| fields timestamp, agent = `service.name`, content, trace_id, span_id\n| limit 200",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -787,7 +787,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize Tokens = sum(toLong(`gen_ai.usage.output_tokens`))",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize Tokens = sum(coalesce(toLong(`gen_ai.usage.output_tokens`), toLong(`gen_ai.usage.completion_tokens`)))",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -823,7 +823,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\"\n| summarize Calls = countIf(`gen_ai.operation.name` == \"chat\")",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\"\n| summarize Calls = countIf(`gen_ai.operation.name` == \"chat\")",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -855,7 +855,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\"\n| summarize Calls = countIf(`gen_ai.operation.name` == \"execute_tool\")",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\"\n| summarize Calls = countIf(`gen_ai.operation.name` == \"execute_tool\")",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -887,7 +887,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\"\n| summarize Conversations = countIf(startsWith(`span.name`, \"crew \"))",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\"\n| summarize Conversations = countIf(startsWith(`span.name`, \"crew \"))",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -923,7 +923,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| makeTimeseries input = sum(toLong(`gen_ai.usage.input_tokens`)), output = sum(toLong(`gen_ai.usage.output_tokens`))",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| makeTimeseries input = sum(coalesce(toLong(`gen_ai.usage.input_tokens`), toLong(`gen_ai.usage.prompt_tokens`))), output = sum(coalesce(toLong(`gen_ai.usage.output_tokens`), toLong(`gen_ai.usage.completion_tokens`)))",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -962,7 +962,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize input = sum(toLong(`gen_ai.usage.input_tokens`)), output = sum(toLong(`gen_ai.usage.output_tokens`))\n| fieldsAdd i = record(type = \"input\", tokens = input), o = record(type = \"output\", tokens = output)\n| fields arr = array(i, o)\n| expand arr\n| fields type = arr[type], tokens = arr[tokens]",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize input = sum(coalesce(toLong(`gen_ai.usage.input_tokens`), toLong(`gen_ai.usage.prompt_tokens`))), output = sum(coalesce(toLong(`gen_ai.usage.output_tokens`), toLong(`gen_ai.usage.completion_tokens`)))\n| fieldsAdd i = record(type = \"input\", tokens = input), o = record(type = \"output\", tokens = output)\n| fields arr = array(i, o)\n| expand arr\n| fields type = arr[type], tokens = arr[tokens]",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,

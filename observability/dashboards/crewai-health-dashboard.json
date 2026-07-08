@@ -437,7 +437,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize runs = count(), failed = countIf(span.status_code == \"ERROR\"), by:{agent = `gen_ai.agent.name`}\n| sort runs desc",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize runs = count(), failed = countIf(span.status_code == \"ERROR\"), by:{agent = `gen_ai.agent.name`}\n| sort runs desc",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -502,7 +502,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\"\n| summarize Agents = countDistinct(`gen_ai.agent.name`)",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\"\n| summarize Agents = countDistinct(`gen_ai.agent.name`)",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -582,7 +582,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize p50 = percentile(duration, 50) / 1000000000.0",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize p50 = percentile(duration, 50) / 1000000000.0",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -614,7 +614,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize p90 = percentile(duration, 90) / 1000000000.0",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize p90 = percentile(duration, 90) / 1000000000.0",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -646,7 +646,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize p90 = percentile(duration, 90) / 1000000000.0",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"chat\"\n| summarize p90 = percentile(duration, 90) / 1000000000.0",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -678,7 +678,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize Errors = countIf(span.status_code == \"ERROR\")",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"execute_tool\"\n| summarize Errors = countIf(span.status_code == \"ERROR\")",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -710,7 +710,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans | filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\" and startsWith(`span.name`, \"task \") | makeTimeseries tasks = count()",
+        "query": "fetch spans | filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\" and startsWith(`span.name`, \"task \") | makeTimeseries tasks = count()",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -749,7 +749,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize runs = count(), failed = countIf(span.status_code == \"ERROR\"), p50s = percentile(duration, 50) / 1000000000.0, p90s = percentile(duration, 90) / 1000000000.0, maxs = max(duration) / 1000000000.0, by:{agent = `gen_ai.agent.name`}\n| sort p90s desc",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize runs = count(), failed = countIf(span.status_code == \"ERROR\"), p50s = percentile(duration, 50) / 1000000000.0, p90s = percentile(duration, 90) / 1000000000.0, maxs = max(duration) / 1000000000.0, by:{agent = `gen_ai.agent.name`}\n| sort p90s desc",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -771,7 +771,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize Runs = count()",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize Runs = count()",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
@@ -803,7 +803,7 @@
           },
           "enabled": false
         },
-        "query": "fetch spans\n| filter gen_ai.system == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize Failed = countIf(span.status_code == \"ERROR\")",
+        "query": "fetch spans\n| filter coalesce(gen_ai.provider.name, gen_ai.system) == \"crewai\" and `gen_ai.operation.name` == \"invoke_agent\"\n| summarize Failed = countIf(span.status_code == \"ERROR\")",
         "querySettings": {
           "defaultSamplingRatio": 10,
           "defaultScanLimitGbytes": 500,
