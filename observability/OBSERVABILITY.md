@@ -7,9 +7,12 @@ gap analysis behind these choices is in the research doc.
 
 > **TL;DR** — CrewAI 1.15 emits rich internal *events* but, out of the box, **no
 > OTLP metrics** and only two coarse spans, tagged with the wrong semantic
-> convention for Dynatrace. We close that with a small event-bus → OpenTelemetry
-> listener that emits standards-compliant `gen_ai.*` spans + metrics + logs, then
-> route them through an OTel Collector to Dynatrace (<your-tenant>).
+> convention for Dynatrace. We close that gap with **any of three vendor-neutral,
+> no-crew-code-change instrumentation paths** — **OpenLIT** (the shipped easy
+> button), **OpenLLMetry / Traceloop**, or a **native event-bus listener** — each
+> emitting standards-compliant `gen_ai.*` spans + metrics + logs, then routed
+> through one OTel Collector to Dynatrace (<your-tenant>). This mirrors the
+> episode's Chapter 6.
 
 ---
 
@@ -61,14 +64,60 @@ Emitted signals:
 
 ---
 
-## 3. Instrument the crew (two lines)
+## 3. Instrument the crew — pick one path
 
 ```bash
 pip install -r observability/requirements-observability.txt
 ```
 
-At the very top of your entrypoint (`main.py` / FastAPI `server.py`), **before**
-building the crew:
+The episode shows **three** ways to instrument CrewAI, all open-source, all with
+**no changes to the crew's own code**, and all landing on the **same OTLP →
+Collector → Dynatrace** pipeline. Pick one — they are mutually exclusive.
+
+### Option A — OpenLIT  *(shipped default — the "easy button")*
+
+What the tutorial ships (the app wires this in `bmad_crew/observability.py`).
+[OpenLIT](https://github.com/openlit/openlit) is a one-liner that auto-instruments
+CrewAI + the LiteLLM/Ollama call path and emits `gen_ai.*` **spans *and* GenAI
+metrics** with `gen_ai.system == "crewai"` — so it drops straight onto the shipped
+dashboards with no remap.
+
+```python
+from observability.instrument_openlit import init_observability
+init_observability(service_name="crewai-bmad-crew")   # before crew.kickoff(...)
+```
+
+Enable by uncommenting `openlit` in `requirements-observability.txt`.
+
+### Option B — OpenLLMetry / Traceloop  *(one line, OTLP-native)*
+
+[OpenLLMetry](https://github.com/traceloop/openllmetry) is Traceloop's one-line
+auto-instrumentation — a great pick if you already live in that ecosystem.
+
+```python
+from observability.instrument_openllmetry import init_observability
+init_observability(service_name="crewai-bmad-crew")   # before crew.kickoff(...)
+```
+
+Enable by uncommenting `traceloop-sdk` in `requirements-observability.txt`.
+
+> **Attribute-parity note (the episode's "sanity-check the names" beat).**
+> OpenLLMetry is OTel-GenAI-aligned but does **not** emit the exact same shape as
+> Option A / C: token usage is `gen_ai.usage.prompt_tokens` / `completion_tokens`
+> (the dashboards already coalesce these); framework spans carry
+> `traceloop.span.kind` (`workflow|task|agent|tool`) + `traceloop.entity.name`
+> instead of `gen_ai.operation.name` / `gen_ai.agent.name` / `gen_ai.tool.name`;
+> and `gen_ai.system` on model-call spans is the **LLM vendor** (e.g. `ollama`),
+> not `crewai`. The Collector `transform` (§4) bridges the token, agent, and tool
+> attributes automatically; a single **opt-in** (commented) transform statement
+> also re-stamps `gen_ai.system == "crewai"` so you can reuse the dashboards
+> verbatim. **Re-validate the exact names against your pinned Traceloop version.**
+
+### Option C — Native event-bus listener  *(full control, reference build)*
+
+The `observability/instrumentation/` listener subscribes to CrewAI's native event
+bus and emits `gen_ai.*` itself — the most control, and the reference for the
+upstream contribution (§7). Live-validated on CrewAI 1.15.1.
 
 ```python
 from observability.instrumentation import init_otel, instrument_crewai
@@ -79,23 +128,16 @@ instrument_crewai()                          # CrewAI event bus -> OTel signals
 
 See `observability/example_instrumented_crew.py` for a complete runnable example.
 
-### Alternative: OpenLIT (zero-code auto-instrumentation)
+### Attribute shape across the three paths
 
-If you prefer not to run the native listener, `observability/instrument_openlit.py`
-wires [OpenLIT](https://github.com/openlit/openlit) instead — a one-liner that
-auto-instruments CrewAI + the LiteLLM/Ollama call path and also emits `gen_ai.*`:
-
-```python
-from observability.instrument_openlit import init_observability
-init_observability(service_name="crewai-bmad-crew")   # before crew.kickoff(...)
-```
-
-Enable it by uncommenting `openlit` in `requirements-observability.txt`. Trade-off:
-simpler, but pulls a heavier dependency and its exact span/metric shape depends on
-the OpenLIT version — **re-validate on your CrewAI version** before relying on it
-(the collector `transform` and the dashboards assume the attribute names in §6,
-which the native listener guarantees). The two paths are mutually exclusive — pick
-one.
+| Signal | OpenLIT (A) | OpenLLMetry (B) | Native listener (C) |
+|---|---|---|---|
+| `gen_ai.system` | `crewai` | LLM vendor (e.g. `ollama`) → opt-in remap to `crewai` | `crewai` |
+| Input / output tokens | `gen_ai.usage.input_tokens` / `output_tokens` | `gen_ai.usage.prompt_tokens` / `completion_tokens` → bridged | `gen_ai.usage.input_tokens` / `output_tokens` |
+| Agent grouping | `gen_ai.agent.name` | `traceloop.entity.name` (kind=`agent`) → bridged | `gen_ai.agent.name` |
+| Tool span | `gen_ai.operation.name=execute_tool`, `gen_ai.tool.name` | `traceloop.span.kind=tool`, `traceloop.entity.name` → bridged | `gen_ai.operation.name=execute_tool`, `gen_ai.tool.name` |
+| GenAI metrics | ✅ native | ✅ native | ✅ emitted by the listener |
+| Dashboards work as-shipped | ✅ | ⚠️ enable the opt-in `gen_ai.system` remap | ✅ |
 
 Environment:
 
@@ -177,7 +219,11 @@ GenAI event feed.
 
 All span tiles filter on `gen_ai.system == "crewai"`, so they work whether the
 crew runs locally or in Kubernetes. Infra/log tiles filter on the
-`observable-crewai` cluster / `crewai` namespace.
+`observable-crewai` cluster / `crewai` namespace. Token tiles coalesce both the
+`input/output` and `prompt/completion` token attributes, so **OpenLIT (A)**,
+**OpenLLMetry (B)** and the **native listener (C)** all light them up — for the
+OpenLLMetry path, also enable the opt-in `gen_ai.system` remap in the Collector
+transform (§3 parity note) so its LLM spans pass the `crewai` filter.
 
 > The DQL in these dashboards is modeled on the kagent episode's dashboards, which
 > were validated live against this same Dynatrace tenant, with attribute names
@@ -199,6 +245,21 @@ crew runs locally or in Kubernetes. Infra/log tiles filter on the
 | Metric | `gen_ai.client.token.usage` (histogram) | `gen_ai.token.type=input\|output`, `gen_ai.request.model`, `gen_ai.agent.name` |
 | Metric | `gen_ai.client.operation.duration` (histogram, s) | `gen_ai.request.model`, `gen_ai.agent.name` |
 | Metric | `crewai.{crew,task,tool}.executions`, `crewai.errors` (counters) | `status`, `signal`, `tool.name` |
+
+### Tool spans — MCP servers and custom skills
+
+Chapter 3 gives the BMAD agents **tools**: custom skills (a `crewai.tools.BaseTool`
+subclass) and whole **MCP servers** plugged in via `crewai_tools.MCPServerAdapter`.
+Both kinds surface identically in the trace — one **`tool <name>`** span per call,
+child of the agent that invoked it, carrying `gen_ai.operation.name=execute_tool`
+and `gen_ai.tool.name=<tool>`. `<name>` is the tool's registered name
+(`read_repo_file`, `list_repo_dir`, or the MCP-exposed tool name) — the same string
+the app's `bmad_crew/tools.py` sets, so **span naming is aligned end-to-end** with
+the tools built on the build/deploy side. On the OpenLLMetry path these arrive as
+`traceloop.span.kind=tool` / `traceloop.entity.name` and are bridged to the
+canonical shape by the Collector (§3 parity note, §4 transform). The **Agentic
+Efficiency** dashboard reads these for *tool calls by tool*, *by agent*, and *tool
+error rate*.
 
 ---
 
