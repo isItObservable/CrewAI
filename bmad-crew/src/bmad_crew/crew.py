@@ -18,6 +18,8 @@ import os
 from crewai import Agent, Crew, LLM, Process, Task
 from crewai.project import CrewBase, agent, task, crew
 
+from .tools import github_tools
+
 
 def build_llm() -> LLM:
     """Local qwen via Ollama, configured from the environment.
@@ -27,7 +29,7 @@ def build_llm() -> LLM:
     """
     return LLM(
         model=os.getenv("MODEL", "ollama/qwen3.6"),
-        base_url=os.getenv("OLLAMA_BASE_URL", "http://10.0.0.185:11434"),
+        base_url=os.getenv("OLLAMA_BASE_URL", "http://<your-ollama-host>:11434"),
         temperature=float(os.getenv("MODEL_TEMPERATURE", "0.4")),
     )
 
@@ -41,6 +43,9 @@ class BmadCrew:
 
     def __init__(self) -> None:
         self.llm = build_llm()
+        # Optional GitHub MCP toolset — empty unless GITHUB_PERSONAL_ACCESS_TOKEN is set,
+        # so the crew stays key-free by default. Built once and shared across agents.
+        self.github_tools = github_tools()
 
     # --- Agents -----------------------------------------------------------------
     @agent
@@ -49,7 +54,13 @@ class BmadCrew:
 
     @agent
     def pm(self) -> Agent:
-        return Agent(config=self.agents_config["pm"], llm=self.llm, verbose=True)
+        # PM can file the PRD / epics as GitHub issues when GitHub tools are enabled.
+        return Agent(
+            config=self.agents_config["pm"],
+            llm=self.llm,
+            tools=self.github_tools,
+            verbose=True,
+        )
 
     @agent
     def ux(self) -> Agent:
@@ -61,15 +72,33 @@ class BmadCrew:
 
     @agent
     def architect(self) -> Agent:
-        return Agent(config=self.agents_config["architect"], llm=self.llm, verbose=True)
+        # Architect can commit design docs to the repo when GitHub tools are enabled.
+        return Agent(
+            config=self.agents_config["architect"],
+            llm=self.llm,
+            tools=self.github_tools,
+            verbose=True,
+        )
 
     @agent
     def sm(self) -> Agent:
-        return Agent(config=self.agents_config["sm"], llm=self.llm, verbose=True)
+        # Scrum Master can open the sliced stories as GitHub issues when enabled.
+        return Agent(
+            config=self.agents_config["sm"],
+            llm=self.llm,
+            tools=self.github_tools,
+            verbose=True,
+        )
 
     @agent
     def dev(self) -> Agent:
-        return Agent(config=self.agents_config["dev"], llm=self.llm, verbose=True)
+        # Dev is the primary GitHub actor: create branches, commit files, open PRs.
+        return Agent(
+            config=self.agents_config["dev"],
+            llm=self.llm,
+            tools=self.github_tools,
+            verbose=True,
+        )
 
     @agent
     def qa(self) -> Agent:

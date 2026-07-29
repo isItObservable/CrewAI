@@ -1,10 +1,10 @@
 # STARTER OTel Collector for the BMAD crew — app-shape reference for the Observability
-# Agent (ISI-1586), who owns the production collector + Dynatrace dashboards.
+# Agent, who owns the production collector + Dynatrace dashboards.
 #
 # Because the app uses OpenLIT (gen_ai.* spans + GenAI metrics, OTLP-native), NO
 # attribute transform is required — signals land in Dynatrace's native GenAI model
 # directly. If you instead use OpenInference, add the OI->gen_ai `transform` processor
-# from research ISI-1584 §4 Option 2.
+# from the telemetry-gap research (Option 2).
 #
 # Pipeline order respects our house rules: memory_limiter FIRST, batch LAST,
 # k8sattributes added because we run on Kubernetes.
@@ -31,8 +31,8 @@ data:
       batch: {}
     exporters:
       otlphttp/dynatrace:
-        # Provided by the Observability Agent (ISI-1586) — Dynatrace tenant oat05854.
-        endpoint: ${env:DT_OTLP_ENDPOINT}      # e.g. https://oat05854.live.dynatrace.com/api/v2/otlp
+        # Provided by the Observability Agent — Dynatrace tenant <your-tenant>.
+        endpoint: ${env:DT_OTLP_ENDPOINT}      # e.g. https://<your-tenant>.live.dynatrace.com/api/v2/otlp
         headers:
           Authorization: "Api-Token ${env:DT_API_TOKEN}"
     service:

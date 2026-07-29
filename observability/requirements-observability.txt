@@ -1,0 +1,24 @@
+# OpenTelemetry instrumentation for the CrewAI BMAD crew.
+# Pinned to versions validated live against CrewAI 1.15.1 + Ollama qwen3.6.
+
+# --- PRIMARY path: native event-bus -> OTel listener (observability/instrumentation) ---
+# Live-validated. Lightweight: only the OTel SDK + OTLP exporter.
+opentelemetry-api==1.42.1
+opentelemetry-sdk==1.42.1
+opentelemetry-exporter-otlp-proto-grpc==1.42.1
+# For OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf instead of grpc:
+opentelemetry-exporter-otlp-proto-http==1.42.1
+
+# --- SHIPPED default: OpenLIT auto-instrumentation (observability/instrument_openlit.py
+#     and the app's bmad_crew/observability.py) ---
+# One-line init; pulls the OTel SDK transitively. Emits gen_ai.* spans + GenAI
+# metrics with gen_ai.system == "crewai" — drops straight onto the dashboards.
+# Re-validate on your CrewAI version before relying on it.
+# openlit>=1.33.0
+
+# --- ALTERNATIVE path: OpenLLMetry / Traceloop (observability/instrument_openllmetry.py) ---
+# One-line auto-instrumentation, OTLP-native. Great if you already run Traceloop.
+# Its attribute shape differs slightly (prompt/completion tokens, traceloop.* span
+# kinds, gen_ai.system = LLM vendor) — the Collector transform bridges it; see the
+# ATTRIBUTE-PARITY note in OBSERVABILITY.md §3. Uncomment to use.
+# traceloop-sdk>=0.38.0

@@ -1,6 +1,6 @@
 """OpenTelemetry instrumentation for the BMAD crew.
 
-Per the observability research (ISI-1584): CrewAI is trace-rich but **token-blind by
+Per the observability research: CrewAI is trace-rich but **token-blind by
 default**, and emits **no OTLP metrics** out of the box. We adopt **OpenLIT**, which is
 OpenTelemetry-native and emits `gen_ai.*` spans *and* GenAI metrics (token usage,
 operation duration) directly — so it drops straight into a Collector -> Dynatrace
@@ -8,7 +8,7 @@ pipeline with no attribute remapping.
 
 This module is import-safe: if OpenLIT (or the OTLP endpoint) is not present it degrades
 to a no-op so the crew still runs. The Collector pipeline and Dynatrace dashboards are
-owned by the Observability Agent in ISI-1586; this file is the app-side seam they wire to.
+owned by the Observability Agent; this file is the app-side seam they wire to.
 
 Env:
   OTEL_EXPORTER_OTLP_ENDPOINT   OTLP gateway (e.g. http://otel-collector:4318)
@@ -47,7 +47,7 @@ def init_observability() -> bool:
         # deployment.environment resource attr — dashboards/filters key off this.
         environment=os.getenv("OTEL_ENVIRONMENT", "observable-crewai"),
         otlp_endpoint=endpoint,
-        # GenAI metrics are the whole point (CrewAI is token-blind by default, ISI-1584) —
+        # GenAI metrics are the whole point (CrewAI is token-blind by default) —
         # make it explicit so a future OpenLIT default change can't silently drop them.
         disable_metrics=False,
         # Capture prompts/completions as span content for the trace waterfall demo.

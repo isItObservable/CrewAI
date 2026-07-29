@@ -6,7 +6,9 @@ requires-python = ">=3.10,<3.13"
 dependencies = [
     # Pin to the tutorial baseline; CrewAI moves fast — see TUTORIAL.md before bumping.
     "crewai==1.15.1",
-    "crewai-tools>=0.30.0",
+    # [mcp] extra pulls the MCP client so agents can use the GitHub MCP server
+    # (optional GitHub tools — see bmad-crew/GITHUB_TOOLS.md).
+    "crewai-tools[mcp]>=0.30.0",
     # HTTP service for the k8s deployment.
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
