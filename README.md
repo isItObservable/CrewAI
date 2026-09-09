@@ -285,8 +285,8 @@ curl -s localhost:8080/kickoff \
 ```
 
 **Verify in Dynatrace:**
-- **Traces** — a `crew.kickoff → <agent>.execute → chat qwen3.6` waterfall per run.
-- **Metrics/tokens** — `gen_ai.usage.input_tokens` / `output_tokens` per LLM call, aggregated into tokens/run and tokens-per-agent.
+- **Traces** — per run: `invoke_workflow BmadCrew` → one `invoke_agent <role>` per agent (with `create_agent` build spans) → one `chat qwen3.6` per LLM call (names verified live, OpenLIT 1.42.1).
+- **Metrics/tokens** — `gen_ai.usage.input_tokens` / `output_tokens` on every LLM call, with a run total on the `invoke_workflow` span (measured full run: 130,344 in / 239,104 out across 8 LLM calls).
 - **Logs** — agent/task lifecycle, trace-correlated.
 
 If tokens don't appear: OpenLIT isn't initialised (check the Step 5 startup line), the OTLP endpoint is wrong, or the Collector isn't forwarding — walk the pipeline in [`observability/OBSERVABILITY.md`](./observability/OBSERVABILITY.md).
@@ -309,19 +309,21 @@ dtctl dashboard create -f observability/dashboards/crewai-agentic-efficiency-das
 *Is the crew working well and economically?* **Total tokens by agent** and by model, token usage over time, input-vs-output split, **avg tokens per run**, LLM and tool latency (avg + p90), tool calls by tool and by agent, tool error rate, finish reasons, per-agent efficiency (LLM vs tool calls), and a trace-correlated GenAI event feed.
 <p align="center"><img src="/image/dashboard-efficiency.png" width="70%" alt="CrewAI Agentic Efficiency dashboard" /></p>
 
-All span tiles filter on `gen_ai.system == "crewai"`, so they work whether the crew runs locally or in Kubernetes. Infra / log tiles filter on the `observable-crewai` cluster / `crewai` namespace.
+All span tiles filter on `coalesce(gen_ai.provider.name, gen_ai.system) == "crewai"` — OpenLIT 1.42.x sets `gen_ai.provider.name` on the CrewAI/LLM spans (verified live), `gen_ai.system` is the fallback — so they work whether the crew runs locally or in Kubernetes. Infra / log tiles filter on the `observable-crewai` cluster / `crewai` namespace.
 
-> The DQL in these dashboards is modeled on our kagent episode's dashboards (validated live against this same Dynatrace tenant), with attribute names adapted to CrewAI (`chat` op, `gen_ai.agent.name` grouping, `span.status_code` for tool errors). **Re-validate against live data once the crew is deployed.**
+> The DQL in these dashboards is modeled on our kagent episode's dashboards (validated live against this same Dynatrace tenant), with attribute names adapted to CrewAI (`chat` op, `gen_ai.agent.name` grouping, `span.status_code` for tool errors). **Span names and attributes below were re-validated against live data on 2026-09-09** (k8squad-test deploy, OpenLIT 1.42.1).
 
 ### GenAI semantic-convention reference
 
+Span rows verified live 2026-09-09 (OpenLIT 1.42.1, `otel.scope.name=openlit.instrumentation.crewai`); metric rows are OpenLIT-documented.
+
 | Signal | Name | Key attributes |
 |---|---|---|
-| Span (crew) | `crew <name>` | `gen_ai.system=crewai`, `gen_ai.operation.name=invoke_agent`, `crewai.crew.name` |
-| Span (task) | `task <name>` | `gen_ai.operation.name=invoke_agent`, `crewai.task.name`, `crewai.task.id` |
-| Span (agent) | `agent <role>` | `gen_ai.operation.name=invoke_agent`, `gen_ai.agent.name` |
-| Span (LLM) | `chat <model>` | `gen_ai.operation.name=chat`, `gen_ai.request.model`, `gen_ai.usage.{input,output,total}_tokens`, `gen_ai.response.finish_reasons` |
-| Span (tool) | `tool <name>` | `gen_ai.operation.name=execute_tool`, `gen_ai.tool.name` |
+| Span (workflow) | `invoke_workflow <name>` | `gen_ai.operation.name=invoke_workflow`, `gen_ai.provider.name=crewai`, `gen_ai.workflow.name`, `gen_ai.execution.mode`, `gen_ai.crewai.crew.task_count`, run-total `gen_ai.usage.{input,output}_tokens` |
+| Span (agent build) | `create_agent <role>` | `gen_ai.operation.name=create_agent`, `gen_ai.agent.{name,id,description}` |
+| Span (agent run) | `invoke_agent <role>` | `gen_ai.operation.name=invoke_agent`, `gen_ai.agent.name`, `gen_ai.agent.id`, `gen_ai.input.messages` / `gen_ai.output.messages` |
+| Span (LLM) | `chat <model>` | `gen_ai.operation.name=chat`, `gen_ai.request.model`, `gen_ai.usage.{input,output}_tokens`, `gen_ai.client.token.usage` (total), `gen_ai.response.finish_reasons`, `gen_ai.server.time_to_first_token`, `gen_ai.content.reasoning` |
+| Span (tool) | `tool <name>` | appears only when tools are enabled — `gen_ai.operation.name=execute_tool`, `gen_ai.tool.name` (the tool-free baseline emits none) |
 | Metric | `gen_ai.client.token.usage` (histogram) | `gen_ai.token.type=input\|output`, `gen_ai.request.model`, `gen_ai.agent.name` |
 | Metric | `gen_ai.client.operation.duration` (histogram, s) | `gen_ai.request.model`, `gen_ai.agent.name` |
 | Metric | `crewai.{crew,task,tool}.executions`, `crewai.errors` (counters) | `status`, `signal`, `tool.name` |
