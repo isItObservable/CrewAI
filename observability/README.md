@@ -30,8 +30,10 @@ Dynatrace (tenant <your-tenant>, native gen_ai.* model)
 
 ## What the app emits (for the dashboard builder)
 
-- Spans: `chat <model>` (LLM), agent execution, crew kickoff — a clean linear waterfall
-  `crew.kickoff → <agent>.execute → chat <model>` for the sequential BMAD pipeline.
+- Spans: `chat <model>` (LLM), agent execution, workflow kickoff — a clean linear waterfall
+  `invoke_workflow <name> → invoke_agent <role> → chat <model>` for the sequential BMAD
+  pipeline (names verified live, OpenLIT 1.42.1; `create_agent <role>` spans appear at
+  crew build-time).
 - `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`,
   `gen_ai.response.finish_reasons`, `gen_ai.operation.name`.
 - GenAI metrics: token-usage histogram + operation-duration histogram.
