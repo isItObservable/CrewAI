@@ -7,10 +7,10 @@ RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
-# Install deps first for better layer caching.
+# Install deps first for better layer caching. uv reads [project.dependencies]
+# straight from pyproject.toml; no process substitution (Docker's /bin/sh is dash).
 COPY bmad-crew/pyproject.toml ./
-RUN uv pip install --system --no-cache -r <(uv pip compile pyproject.toml 2>/dev/null || echo "") \
-    || uv pip install --system --no-cache . 2>/dev/null || true
+RUN uv pip install --system --no-cache -r pyproject.toml
 
 # Copy the application source and install the package itself.
 COPY bmad-crew/ ./
