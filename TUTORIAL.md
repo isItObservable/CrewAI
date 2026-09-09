@@ -118,7 +118,37 @@ the dashboards live in [`observability/README.md`](./observability/README.md).
 
 ## 6. Containerize
 
-From the **repo root** (the Dockerfile expects the root as build context):
+You don't need docker on your laptop to publish the image — the repo builds and
+pushes it **for you** on GitHub's runners.
+
+### 6.1 CI build (recommended — no local docker, no PAT)
+
+`.github/workflows/build-image.yml` builds the image and pushes it to GHCR using
+the built-in `GITHUB_TOKEN`, which carries `packages: write` **scoped to this repo
+only** — no personal access token required. It runs on:
+
+- every push to `main` / `master`,
+- any `v*` tag (semver-tagged release images), and
+- a manual **workflow_dispatch** from the Actions tab.
+
+So the workflow is: **push (or open the Actions tab → Run workflow) → GitHub builds
+the image → it lands at `ghcr.io/isitobservable/bmad-crew:latest` and `:1.0.0`.**
+The Dockerfile lives at the repo root and `COPY`s from `bmad-crew/`, so the workflow
+sets the build context to the repo root (`context: .`) and `platforms: linux/amd64`
+(the Kubernetes workers are amd64; the Mac Studio only hosts Ollama).
+
+> **First publish is private.** GHCR packages default to *private*. After the first
+> green run, a package admin sets the `bmad-crew` package **Public** (Package →
+> Settings → Change visibility) so the cluster can pull it without an
+> `imagePullSecret`. Do this once.
+
+Watch the run under the repo's **Actions** tab; the published image shows up under
+the org's **Packages**.
+
+### 6.2 Local build (offline fallback)
+
+If you're offline or want to iterate on the image locally, build it yourself from
+the **repo root** (the Dockerfile expects the root as build context):
 
 ```bash
 cd ..                                        # back to CrewAI/
@@ -134,7 +164,7 @@ The image serves the **kickoff API** (`server.py`): `POST /kickoff` runs the cre
 synchronously; `GET /healthz` is the probe target.
 
 ```bash
-docker push ghcr.io/isitobservable/bmad-crew:1.0.0
+docker push ghcr.io/isitobservable/bmad-crew:1.0.0    # needs `packages:write` on the org
 ```
 
 ---
