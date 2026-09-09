@@ -390,9 +390,14 @@ curl -s localhost:8080/kickoff \
 
 Then confirm telemetry landed:
 
-- **Traces** — a `crew.kickoff → <agent>.execute → chat qwen3.6` waterfall per run.
-- **Metrics/tokens** — `gen_ai.usage.input_tokens` / `output_tokens` per LLM call,
-  aggregated into tokens/run and tokens-per-agent.
+- **Traces** — per run: `invoke_workflow BmadCrew` at the root, one
+  `invoke_agent <role>` span per agent (plus `create_agent` spans from crew
+  build-time and CrewAI-internal `invoke_agent <step>` spans beneath each), and
+  one `chat qwen3.6` span per LLM call. These are the exact span names from the
+  live deployment (OpenLIT 1.42.1).
+- **Metrics/tokens** — `gen_ai.usage.input_tokens` / `output_tokens` on every
+  `chat` span, and a run total on the `invoke_workflow` span (measured full run:
+  130,344 in / 239,104 out across 8 LLM calls).
 - **Logs** — agent/task lifecycle.
 
 If tokens don't appear: OpenLIT isn't initialised (check the startup line in step 6),

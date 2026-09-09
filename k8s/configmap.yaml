@@ -9,7 +9,8 @@ data:
   OLLAMA_BASE_URL: "http://<your-ollama-host>:11434"
   MODEL_TEMPERATURE: "0.4"
   # OTel: send to the in-cluster Collector gateway.
-  # 4318 = OTLP/HTTP. Adjust to the Observability Agent's collector Service DNS.
-  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
+  # 4318 = OTLP/HTTP. This is the collector Service DNS we validated live
+  # (observability namespace gateway). Substitute your own collector's DNS.
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-gateway-collector.observability.svc.cluster.local:4318"
   OTEL_SERVICE_NAME: "bmad-crew"
   CREWAI_DISABLE_TELEMETRY: "true"

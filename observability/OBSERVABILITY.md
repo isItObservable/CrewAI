@@ -228,20 +228,22 @@ transform (§3 parity note) so its LLM spans pass the `crewai` filter.
 > The DQL in these dashboards is modeled on the kagent episode's dashboards, which
 > were validated live against this same Dynatrace tenant, with attribute names
 > adapted to CrewAI (`chat` op, `gen_ai.agent.name` grouping, `span.status_code`
-> for tool errors). **Re-validate against live data once the crew is deployed**
->.
+> for tool errors). **Span names and attributes were re-validated against live
+> data on 2026-09-09** (k8squad-test deploy, OpenLIT 1.42.1).
 
 ---
 
 ## 6. GenAI semantic-convention reference
 
+Span rows verified live 2026-09-09 (OpenLIT 1.42.1, `otel.scope.name=openlit.instrumentation.crewai`); metric rows are OpenLIT-documented.
+
 | Signal | Name | Key attributes |
 |---|---|---|
-| Span (crew) | `crew <name>` | `gen_ai.system=crewai`, `gen_ai.operation.name=invoke_agent`, `crewai.crew.name` |
-| Span (task) | `task <name>` | `gen_ai.operation.name=invoke_agent`, `crewai.task.name`, `crewai.task.id` |
-| Span (agent) | `agent <role>` | `gen_ai.operation.name=invoke_agent`, `gen_ai.agent.name` |
-| Span (LLM) | `chat <model>` | `gen_ai.operation.name=chat`, `gen_ai.request.model`, `gen_ai.usage.{input,output,total}_tokens`, `gen_ai.response.finish_reasons`, `gen_ai.agent.name` |
-| Span (tool) | `tool <name>` | `gen_ai.operation.name=execute_tool`, `gen_ai.tool.name` |
+| Span (workflow) | `invoke_workflow <name>` | `gen_ai.operation.name=invoke_workflow`, `gen_ai.provider.name=crewai`, `gen_ai.workflow.name`, `gen_ai.execution.mode`, `gen_ai.crewai.crew.task_count`, run-total `gen_ai.usage.{input,output}_tokens` |
+| Span (agent build) | `create_agent <role>` | `gen_ai.operation.name=create_agent`, `gen_ai.agent.{name,id,description}` |
+| Span (agent run) | `invoke_agent <role>` | `gen_ai.operation.name=invoke_agent`, `gen_ai.agent.name`, `gen_ai.agent.id`, `gen_ai.input.messages` / `gen_ai.output.messages` |
+| Span (LLM) | `chat <model>` | `gen_ai.operation.name=chat`, `gen_ai.request.model`, `gen_ai.usage.{input,output}_tokens`, `gen_ai.client.token.usage` (total), `gen_ai.response.finish_reasons`, `gen_ai.server.time_to_first_token`, `gen_ai.content.reasoning` |
+| Span (tool) | `tool <name>` | appears only when tools are enabled — `gen_ai.operation.name=execute_tool`, `gen_ai.tool.name` (the tool-free baseline emits none) |
 | Metric | `gen_ai.client.token.usage` (histogram) | `gen_ai.token.type=input\|output`, `gen_ai.request.model`, `gen_ai.agent.name` |
 | Metric | `gen_ai.client.operation.duration` (histogram, s) | `gen_ai.request.model`, `gen_ai.agent.name` |
 | Metric | `crewai.{crew,task,tool}.executions`, `crewai.errors` (counters) | `status`, `signal`, `tool.name` |
