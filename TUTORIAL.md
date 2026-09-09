@@ -65,6 +65,17 @@ are explicit in both the code and (later) the trace. The final QA task writes
 Open `config/agents.yaml` to see the personas, and `crew.py` to see how `@agent` /
 `@task` / `@crew` wire them with `Process.sequential`.
 
+> **One crew, one process — read this before you scale it.** `kickoff()` runs all
+> eight agents in a single Python process: task `context` hand-offs are in-memory,
+> so the natural unit of deployment is ONE container/pod (that's what `k8s/` ships,
+> behind one Service). Per-agent containers are **not** a native CrewAI pattern.
+> If you outgrow it, the escape hatch is to split the crew into per-agent services —
+> each a single-agent crew behind its own Deployment — and hand work off over HTTP.
+> You gain independent scaling and failure domains; you pay with network hops, more
+> moving parts, and losing the free in-process context. Measure first (the
+> dashboards in the observability chapter) — for a crew this size, one pod is the
+> honest architecture.
+
 ---
 
 ## 4. Run the crew locally
