@@ -12,12 +12,15 @@ dependencies = [
     # HTTP service for the k8s deployment.
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
+    # CopilotKit BFF (copilotkit_bff.py) calls the crew service over HTTP.
+    "httpx>=0.27",
     # OpenTelemetry via OpenLIT (gen_ai.* spans + GenAI metrics, OTLP-native).
     "openlit>=1.33.0",
 ]
 
 [project.scripts]
 bmad-crew = "bmad_crew.main:main"
+bmad-crew-bff = "bmad_crew.copilotkit_bff:main"
 
 [build-system]
 requires = ["hatchling"]

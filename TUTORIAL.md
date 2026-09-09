@@ -4,8 +4,14 @@ A follow-along, host-runnable tutorial. Every step is a command you can paste. B
 **CrewAI 1.15.1**, Python 3.10–3.12, local **qwen3.6** via Ollama at
 `http://<your-ollama-host>:11434`. Substitute your own Ollama host/model where noted.
 
-> CrewAI moves fast. This tutorial is pinned to **1.15.1**. If you bump the version,
-> re-verify the decorator import path (`crewai.project`) and the LLM/Ollama env names.
+> CrewAI moves fast. This tutorial is pinned to **1.15.1** (the tested, deployed
+> baseline — the published image and the k8s walkthroughs all run it). Doc links
+> point at **v1.15.20** (closest stable docs); if you bump the version, re-verify
+> the decorator import path (`crewai.project`) and the LLM/Ollama env names.
+>
+> **Provenance:** aligned with the v3 storyboard (ISI-4039 restructure + ISI-4088
+> native-telemetry fold + ISI-4095 CopilotKit-as-UI, per board asks ISI-4078 /
+> ISI-4095, 2026-09-09).
 
 ---
 
@@ -31,9 +37,19 @@ uv pip install -e .          # installs crewai==1.15.1, crewai-tools, fastapi, o
 crewai version               # expect 1.15.1
 ```
 
-> Prefer the scaffold flow to see how CrewAI generates a project? `crewai create crew demo`
+> **Scaffold it the right way — Skills first.** CrewAI ships a set of **Skills** for
+> your *coding* assistant: one command — `npx skills add crewaiinc/skills` — pulls
+> CrewAI's official public registry into whatever coding agent you use (Claude Code,
+> Cursor, Codex…), so the project it scaffolds is idiomatic CrewAI from line one.
+> This is **build-time** tooling: it primes the assistant that helps you *write* the
+> crew — it doesn't run inside it. (OSS guardrail: the Skills registry add is all we
+> use — no usage-analytics dashboards, no account linking.)
+>
+> Prefer the CLI scaffold to see how CrewAI generates a project? `crewai create crew demo`
 > produces the same `config/agents.yaml` + `config/tasks.yaml` + `crew.py` shape this repo
-> uses. We ship a ready-made BMAD crew so you can go straight to running it.
+> uses. And when your crew grows tools worth sharing, ship them as a package — see
+> [§5](#5-give-your-agents-tools-built-ins--mcp--your-own--pypi). We ship a
+> ready-made BMAD crew so you can go straight to running it.
 
 ---
 
@@ -97,7 +113,106 @@ cat output/qa_report.md
 
 ---
 
-## 5. Add observability (OpenTelemetry → Dynatrace)
+## 5. Give your agents tools (built-ins → MCP → your own → PyPI)
+
+So far the crew reasons and writes, but agents get a lot more useful when they can
+**do things**. CrewAI's tooling story has a clear order of attack — and it starts
+with *not building anything at all*:
+
+1. **Reach for the built-in tool library first** — don't build what already ships.
+2. Wire a whole **MCP server** when you have one (no glue code).
+3. **Write your own** tool only when nothing fits.
+4. **Publish it to PyPI** so future-you (and everyone else) can `pip install` it.
+
+### 5.1 Built-in tools first (`crewai-tools`)
+
+One install gets you a library of **40+ ready-made tools** — web search, website
+scraping, file/PDF readers, RAG over your own docs, database and cloud connectors:
+
+```bash
+uv pip install crewai-tools          # already a dependency of this repo
+```
+
+Drop them straight onto an agent — no glue code:
+
+```python
+from crewai import Agent
+from crewai_tools import SerperDevTool, FileReadTool
+
+analyst = Agent(
+    role="Business and Domain Analyst",
+    goal="Turn the brief into a crisp problem statement",
+    backstory="You are a meticulous analyst who never invents requirements.",
+    tools=[SerperDevTool(), FileReadTool()],   # web search + local file reads
+    llm=llm,
+)
+```
+
+`SerperDevTool` wants a `SERPER_API_KEY`; the file/PDF/RAG tools work with no key
+at all. Browse the full catalogue in the docs:
+<https://docs.crewai.com/v1.15.20/en/tools/overview> — the message is simply:
+**check the library before you write a tool.**
+
+### 5.2 MCP servers (a whole toolbox in one line)
+
+Already have an MCP server? CrewAI's `MCPServerAdapter` plugs it in, and every
+tool the server exposes becomes available to the agent:
+
+```python
+from crewai_tools import MCPServerAdapter
+
+with MCPServerAdapter({"url": "https://api.githubcopilot.com/mcp/",
+                       "headers": {"Authorization": f"Bearer {GH_PAT}"}}) as tools:
+    developer = Agent(role="Developer", ..., tools=tools, llm=llm)
+```
+
+This repo ships a worked example: the optional **GitHub toolset** for the dev agent
+(`bmad-crew/GITHUB_TOOLS.md`) — issues, branches, commits, PRs — with every tool
+call captured as a `tool <name>` span by the observability layer.
+
+### 5.3 Write your own (two ways)
+
+For the bespoke stuff, subclass `BaseTool` (with `name`, `description`, `_run`)
+or decorate a plain function with `@tool`; add an `args_schema` (pydantic) and a
+`result_schema` and it's production-grade:
+
+```python
+from crewai.tools import BaseTool
+from pydantic import BaseModel, Field
+
+class LocateInput(BaseModel):
+    target: str = Field(..., description="IP, domain or AS number to locate")
+
+class GeoLocateTool(BaseTool):
+    name: str = "geo_locate"
+    description: str = "Locate an IP/domain/AS and return country + ISP."
+    args_schema: type[BaseModel] = LocateInput
+
+    def _run(self, target: str) -> str:
+        ...  # call your geolocation API, return a string
+```
+
+Every tool call shows up as its own span in the trace (`tool <name>` — see
+`observability/OBSERVABILITY.md` §6), so agents that *act* are agents you can
+*observe*.
+
+### 5.4 Don't keep it — ship it to PyPI
+
+A private helper becomes a shared, versioned package in two commands:
+
+```bash
+uv build                # builds wheel + sdist from pyproject.toml
+uv publish              # → PyPI (use --publish-url testpypi... for a dry run)
+pip install crewai-geolocate   # future-you, or anyone, drops it into a crew
+```
+
+Name it `crewai-<what-it-does>` and it's discoverable next to the built-ins.
+(OSS guardrail: the publish path is PyPI via `uv build` / `uv publish` — that's
+the whole story; there is no hosted registry step.)
+
+---
+
+## 6. Add observability (OpenTelemetry → Dynatrace)
 
 CrewAI is **trace-rich but token-blind by default**. We use
 **OpenLIT** to emit `gen_ai.*` spans and GenAI metrics. It's already wired in
@@ -111,17 +226,37 @@ uv run bmad-crew
 ```
 
 Leave `OTEL_EXPORTER_OTLP_ENDPOINT` unset to run without telemetry (no crash).
-`OTEL_SDK_DISABLED=true` is the hard off-switch. The Collector → Dynatrace pipeline and
-the dashboards live in [`observability/README.md`](./observability/README.md).
+The Collector → Dynatrace pipeline and the dashboards live in
+[`observability/README.md`](./observability/README.md).
+
+> **Myth-buster: CrewAI's *native* telemetry — what it is, and what it is not.**
+> CrewAI phones home with **anonymous product analytics**, and it's built on
+> OpenTelemetry — so you'd be forgiven for thinking you're "already instrumented".
+> You're not:
+>
+> - It runs on a **private, isolated `TracerProvider`** that is **never registered
+>   as the global one** and **never exports to your backend** — no OTLP leaves the
+>   process, your collector never sees it, and it never carries your prompts or
+>   token counts.
+> - It therefore **does not collide** with the OpenLIT instrumentation above, and
+>   it **does not replace** the `gen_ai.*` layer we add ourselves — that layer
+>   (OpenLIT / OpenLLMetry / the event-bus listener) stays the observability story:
+>   it's what makes CrewAI's default **token-blindness** visible.
+> - Want it off? The opt-out is **`CREWAI_DISABLE_TELEMETRY=true`** (our
+>   `observability.py` sets this by default). Do **not** reach for
+>   `OTEL_SDK_DISABLED=true` — that variable is a footgun: it disables *your*
+>   OpenLIT/OpenTelemetry pipeline too, i.e. the very telemetry this chapter is
+>   here to produce. It is a last-resort kill-switch for the whole OTel SDK, not
+>   CrewAI's analytics opt-out.
 
 ---
 
-## 6. Containerize
+## 7. Containerize
 
 You don't need docker on your laptop to publish the image — the repo builds and
 pushes it **for you** on GitHub's runners.
 
-### 6.1 CI build (recommended — no local docker, no PAT)
+### 7.1 CI build (recommended — no local docker, no PAT)
 
 `.github/workflows/build-image.yml` builds the image and pushes it to GHCR using
 the built-in `GITHUB_TOKEN`, which carries `packages: write` **scoped to this repo
@@ -145,7 +280,7 @@ sets the build context to the repo root (`context: .`) and `platforms: linux/amd
 Watch the run under the repo's **Actions** tab; the published image shows up under
 the org's **Packages**.
 
-### 6.2 Local build (offline fallback)
+### 7.2 Local build (offline fallback)
 
 If you're offline or want to iterate on the image locally, build it yourself from
 the **repo root** (the Dockerfile expects the root as build context):
@@ -169,9 +304,9 @@ docker push ghcr.io/isitobservable/bmad-crew:1.0.0    # needs `packages:write` o
 
 ---
 
-## 7. Provision a Kubernetes cluster
+## 8. Provision a Kubernetes cluster
 
-Steps 8–9 need a cluster you can `kubectl apply` to. If you already have one,
+Steps 9–11 need a cluster you can `kubectl apply` to. If you already have one,
 skip ahead. Otherwise pick one of these two paths — both are documented in full,
 with every environment-specific value (node names, IPs, project id) as a
 **variable you supply**, in **[`docs/cluster-setup.md`](./docs/cluster-setup.md)**.
@@ -220,7 +355,7 @@ manifest differences are in [`docs/cluster-setup.md`](./docs/cluster-setup.md).
 
 ---
 
-## 8. Deploy to Kubernetes
+## 9. Deploy to Kubernetes
 
 ```bash
 # Point OLLAMA_BASE_URL / image / OTLP endpoint to your environment first
@@ -244,7 +379,7 @@ kubectl -n bmad-crew rollout status deploy/bmad-crew
 
 ---
 
-## 9. Run and verify
+## 10. Run and verify
 
 ```bash
 kubectl -n bmad-crew port-forward svc/bmad-crew 8080:80 &
@@ -260,9 +395,78 @@ Then confirm telemetry landed:
   aggregated into tokens/run and tokens-per-agent.
 - **Logs** — agent/task lifecycle.
 
-If tokens don't appear: OpenLIT isn't initialised (check the startup line in step 5),
+If tokens don't appear: OpenLIT isn't initialised (check the startup line in step 6),
 the OTLP endpoint is wrong, or the Collector isn't forwarding — walk the pipeline in
 `observability/README.md`.
+
+---
+
+## 11. Drive the crew from the browser — self-hosted CopilotKit UI
+
+curl is a fine demo, but the storyboard beat is a real **UI**: a chat panel you
+type a brief into and watch the crew answer. We use **CopilotKit** — the
+open-source UI layer for agent apps — **fully self-hosted**: the React app in
+[`frontend/`](./frontend/) talks straight to a small FastAPI
+**backend-for-frontend** (`bmad_crew/copilotkit_bff.py`) over the open
+**AG-UI protocol** (SSE). No CopilotKit Cloud, no AMP, no hosted runtime — and
+no extra LLM key: the crew keeps using your Ollama model.
+
+```
+┌───────────────────────┐  AG-UI (HTTP + SSE)  ┌──────────────────────┐   POST /kickoff   ┌─────────────────┐
+│  CopilotKit chat UI   │ ◀──────────────────▶ │  FastAPI BFF         │ ────────────────▶ │  BMAD crew      │
+│  frontend/ (Vite)     │   HttpAgent          │  copilotkit_bff.py   │   (server.py)     │  8 agents       │
+└───────────────────────┘                      └──────────────────────┘                   └─────────────────┘
+```
+
+### 11.1 Start the crew service
+
+The BFF is a *front door* — it calls the same `POST /kickoff` API you already
+have. Start the crew service (locally or via port-forward to the cluster):
+
+```bash
+# local crew service:
+cd bmad-crew && uv run uvicorn bmad_crew.server:app --port 8000
+# …or the in-cluster one:
+kubectl -n bmad-crew port-forward svc/bmad-crew 8000:80 &
+```
+
+### 11.2 Start the BFF
+
+```bash
+cd bmad-crew
+export KICKOFF_URL=http://localhost:8000/kickoff   # where the crew service lives
+uv run bmad-crew-bff                                # serves http://0.0.0.0:8100
+# smoke-test it without a browser and without calling the crew:
+#   BFF_ECHO_MODE=true uv run bmad-crew-bff
+```
+
+The BFF streams a standards-compliant AG-UI event stream — `RUN_STARTED` →
+status message → (crew runs, SSE keep-alives hold the connection open) → the
+QA report as a streamed assistant message → `RUN_FINISHED`.
+
+### 11.3 Start the UI
+
+```bash
+cd frontend
+npm install
+npm run dev            # http://localhost:5173
+```
+
+Type a brief (optionally start with a `project:` line to name the project):
+
+```
+project: Status page
+We need a public status page that reflects our SLOs in real time.
+```
+
+The chat answers with a status note, then — after the crew finishes — the QA
+report lands inline. That's the whole beat: **the crew is still the one clean
+backend; CopilotKit is the thin self-hosted front door.**
+
+> **Guardrail (carried from the storyboard, ISI-4038 §6).** Self-hosted OSS
+> CopilotKit + your own model — never CopilotKit Cloud / AMP. The React app
+> connects with `HttpAgent` from `@ag-ui/client` directly to *your* FastAPI
+> endpoint; there is no CopilotKit-hosted service in the path.
 
 ---
 
@@ -274,14 +478,18 @@ the OTLP endpoint is wrong, or the Collector isn't forwarding — walk the pipel
 | Hangs on first agent | Ollama unreachable — check `OLLAMA_BASE_URL` and `curl .../api/tags` |
 | `OPENAI_API_KEY` demanded | You enabled `memory=True` without a local embedder — set the Ollama embedder (research §3.4) |
 | Tool-calling / delegation flaky | qwen tool-calling can wobble; fall back to sequential (drop `--hierarchical`) |
-| No spans in Dynatrace | `OTEL_EXPORTER_OTLP_ENDPOINT` unset/wrong, or Collector not forwarding |
+| No spans in Dynatrace | `OTEL_EXPORTER_OTLP_ENDPOINT` unset/wrong, or Collector not forwarding — and *not* `CREWAI_DISABLE_TELEMETRY` (that one only silences CrewAI's anon analytics) |
+| Everything instrumented died at once | You set `OTEL_SDK_DISABLED=true` — that kills *your* OpenLIT pipeline too; unset it and use `CREWAI_DISABLE_TELEMETRY=true` if you only want CrewAI's analytics off |
 | `import crewai.project` fails | Version drift — verify the decorator import path for your CrewAI version |
+| BFF: `crew kickoff failed` in chat | `KICKOFF_URL` wrong or crew service down — check `curl localhost:8100/healthz` and the crew's `/healthz` |
+| BFF: chat hangs then errors | Full 8-agent run exceeds `KICKOFF_TIMEOUT` (default 900 s) — raise it, or smoke-test with `BFF_ECHO_MODE=true` |
 
 ---
 
 ## Where to go next
 
 - Enable **memory** with a local Ollama embedder for cross-run recall (research §3.4).
-- Add **custom tools** (`@tool` / `BaseTool`) so the dev agent can read the repo or run tests.
+- Browse the **built-in tool library** before writing your own — see [§5](#5-give-your-agents-tools-built-ins--mcp--your-own--pypi) and <https://docs.crewai.com/v1.15.20/en/tools/overview>.
 - Wrap the crew in a **Flow** (`@start`/`@listen`/`@router`) for retries and branching.
 - Contrast **sequential vs hierarchical** delegation on camera.
+- Point the CopilotKit UI at the in-cluster crew (§11) for the record-time demo.
