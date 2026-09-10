@@ -24,4 +24,4 @@ data:
 
   # Ollama host (must be reachable from the ui pod, not the browser).
   OLLAMA_BASE_URL: "http://10.0.0.185:11434"
-  OLLAMA_MODEL: "qwen3.6"
+  OLLAMA_MODEL: "qwen3.6-nothink"
