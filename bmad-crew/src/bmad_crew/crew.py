@@ -103,7 +103,7 @@ class QAVerdict(BaseModel):
 # Task guardrails
 # ---------------------------------------------------------------------------
 
-def _qa_verdict_guardrail(output: Any) -> tuple[bool, Any]:
+def _qa_verdict_guardrail(output: Any):
     """Reject QA output that doesn't contain a clear SHIP or NO-SHIP decision.
 
     The agent will retry (up to guardrail_max_retries times) with the error

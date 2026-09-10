@@ -28,7 +28,7 @@ import { useCopilotAction } from "@copilotkit/react-core";
 import AgentTimeline from "./components/AgentTimeline";
 import OutputPanel from "./components/OutputPanel";
 
-const CREW_URL = process.env.NEXT_PUBLIC_BMAD_CREW_URL || "http://localhost:8000";
+const CREW_URL = process.env.NEXT_PUBLIC_BMAD_CREW_URL || "/api/crew";
 
 // Suggestions shown in the empty chat state
 const CHAT_SUGGESTIONS = [
@@ -81,29 +81,35 @@ function CrewApp() {
       // Use first few words as the project name.
       const project = brief.split(" ").slice(0, 5).join(" ");
 
-      const resp = await fetch(`${CREW_URL}/kickoff/async`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project,
-          brief,
-          github_repo: github_repo || "",
-          hierarchical: hierarchical || false,
-        }),
-      });
+      try {
+        const resp = await fetch(`${CREW_URL}/kickoff/async`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            project,
+            brief,
+            github_repo: github_repo || "",
+            hierarchical: hierarchical || false,
+          }),
+        });
 
-      if (!resp.ok) {
-        const msg = await resp.text();
+        if (!resp.ok) {
+          const msg = await resp.text();
+          setError(`Failed to start crew: ${msg}`);
+          return { error: msg };
+        }
+
+        const data = await resp.json() as { run_id: string };
+        setRunId(data.run_id);
+        return {
+          run_id: data.run_id,
+          message: `Crew pipeline started! Watch the Agent Timeline →`,
+        };
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
         setError(`Failed to start crew: ${msg}`);
         return { error: msg };
       }
-
-      const data = await resp.json() as { run_id: string };
-      setRunId(data.run_id);
-      return {
-        run_id: data.run_id,
-        message: `Crew pipeline started! Watch the Agent Timeline →`,
-      };
     },
     // Show a status card while the action runs (client-side actions use `render`).
     render: ({ status }) =>
