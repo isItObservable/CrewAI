@@ -19,7 +19,7 @@ spec:
       containers:
         - name: bmad-crew
           # Replace with your registry/tag once built & pushed (see TUTORIAL.md §6).
-          image: ghcr.io/isitobservable/bmad-crew:sha-047994c
+          image: ghcr.io/isitobservable/bmad-crew:sha-a307160
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
