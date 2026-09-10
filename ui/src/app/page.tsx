@@ -101,8 +101,8 @@ function CrewApp() {
         message: `Crew started for **${project}**. Watch the Agent Timeline →`,
       };
     },
-    // Show a status card while the action runs.
-    renderAndWaitForResponse: ({ status }) =>
+    // Show a status card while the action runs (client-side actions use `render`).
+    render: ({ status }) =>
       status === "executing" ? (
         <div className="flex items-center gap-2 text-sm text-indigo-400 py-1">
           <span className="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
