@@ -23,3 +23,7 @@ data:
   # Human-in-the-loop: set to "false" for fully automated server mode.
   # The CLI default is "true" (interactive checkpoints at requirements / arch / QA).
   BMAD_HUMAN_IN_LOOP: "false"
+  # GitHub MCP transport for the dev agent:
+  #   remote  — GitHub's hosted MCP endpoint (no Docker, PAT sent as bearer token)
+  #   docker  — local github-mcp-server container (needs Docker socket in pod)
+  GITHUB_MCP_MODE: "remote"
