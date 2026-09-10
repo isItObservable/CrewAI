@@ -51,32 +51,36 @@ function CrewApp() {
   useCopilotAction({
     name: "kickoff_crew",
     description:
-      "Start the BMAD CrewAI pipeline with a project brief. " +
-      "Returns a run_id to track progress.",
+      "Call this whenever the user wants to build, create, or start a software project. " +
+      "Pass the raw user input as-is — the crew will extract details automatically.",
     parameters: [
-      { name: "project", type: "string", description: "Project name", required: true },
-      { name: "brief", type: "string", description: "Full product brief", required: true },
+      {
+        name: "input",
+        type: "string",
+        description: "The user's full project description exactly as they wrote it.",
+        required: false,
+      },
       {
         name: "github_repo",
         type: "string",
-        description: "GitHub repo (owner/repo) for the dev agent to commit code to",
+        description: "GitHub repo slug (owner/repo) if the user mentioned one.",
         required: false,
       },
       {
         name: "hierarchical",
         type: "boolean",
-        description: "Use hierarchical (manager) process. Default false.",
+        description: "True if the user asked for a manager/hierarchical process.",
         required: false,
       },
     ],
-    // The handler here is the client-side part.  The server-side handler
-    // (which actually calls the FastAPI) is in route.ts.  CopilotKit merges both.
-    handler: async ({ project, brief, github_repo, hierarchical }) => {
-      // Reset previous run state.
+    handler: async ({ input, github_repo, hierarchical }) => {
       setResult(null);
       setError(null);
 
-      // Call the FastAPI backend directly from the browser for the async kickoff.
+      const brief = input || "Build the described project.";
+      // Use first few words as the project name.
+      const project = brief.split(" ").slice(0, 5).join(" ");
+
       const resp = await fetch(`${CREW_URL}/kickoff/async`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -98,7 +102,7 @@ function CrewApp() {
       setRunId(data.run_id);
       return {
         run_id: data.run_id,
-        message: `Crew started for **${project}**. Watch the Agent Timeline →`,
+        message: `Crew pipeline started! Watch the Agent Timeline →`,
       };
     },
     // Show a status card while the action runs (client-side actions use `render`).
@@ -169,10 +173,11 @@ function CrewApp() {
           initial: CHAT_SUGGESTIONS,
         }}
         instructions={
-          "You are the BMAD Crew assistant. When the user describes a project, " +
-          "extract the project name and brief, then call kickoff_crew to start the pipeline. " +
-          "Be concise. If the user mentions GitHub, pass the repo as github_repo. " +
-          "If they want a manager/dynamic process, set hierarchical=true."
+          "You are the BMAD Crew assistant. " +
+          "ALWAYS call kickoff_crew immediately when the user mentions any project, app, or software to build. " +
+          "Pass their exact words as the input parameter. Do NOT ask clarifying questions first — just call the function. " +
+          "If they mention a GitHub repo, pass it as github_repo. " +
+          "After calling kickoff_crew, tell the user the pipeline has started."
         }
       />
     </div>
