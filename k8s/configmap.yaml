@@ -13,4 +13,13 @@ data:
   # (observability namespace gateway). Substitute your own collector's DNS.
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-gateway-collector.observability.svc.cluster.local:4318"
   OTEL_SERVICE_NAME: "bmad-crew"
+  OTEL_ENVIRONMENT: "observable-crewai"
   CREWAI_DISABLE_TELEMETRY: "true"
+  # Instrumentation path — toggle without rebuilding the image:
+  #   openlit      (default) OpenLIT gen_ai.* spans + GenAI metrics
+  #   openllmetry  Traceloop auto-instrumentation
+  #   native       Native CrewAI event-bus → OTel SDK listener
+  CREWAI_INSTRUMENTATION: "openlit"
+  # Human-in-the-loop: set to "false" for fully automated server mode.
+  # The CLI default is "true" (interactive checkpoints at requirements / arch / QA).
+  BMAD_HUMAN_IN_LOOP: "false"

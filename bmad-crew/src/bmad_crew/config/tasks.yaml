@@ -1,91 +1,221 @@
-# BMAD crew — task definitions (CrewAI v1.15.1)
-# One task per hand-off. The pipeline is linear (Process.sequential); each task's
-# `context` lists the upstream tasks whose outputs feed it. This is the "clean linear
-# span tree" the observability build instruments.
+# BMAD crew — task definitions (CrewAI v1.15.1, improved edition)
 #
-#   analyst -> pm -> ux -> po -> architect -> sm -> dev -> qa
+# Design principles applied (crewaiinc/skills / design-task):
+#   * description: what + how + context + constraints (single objective per task)
+#   * expected_output: format + structure + quality markers — never just "a report"
+#   * output_pydantic tasks (analyze_brief, design_architecture, qa_review) have
+#     expected_output that names the required fields exactly, matching the Pydantic
+#     model in crew.py so the LLM produces the right JSON structure.
+#   * context wired explicitly for non-linear dependencies (not assumed from order).
+#   * Human-in-the-loop checkpoints are set in crew.py (human_input=), not here.
 #
-# `context` is wired explicitly (not just list order) so the hand-offs are legible in
-# both the code and the trace waterfall.
+# Pipeline:  analyst → pm → ux → po → architect → sm → dev → qa
 
 analyze_brief:
   description: >
     Analyze the incoming brief for "{project}":
+
     {brief}
-    Identify the core problem, the target users, hard constraints, and what success
-    looks like. Call out anything ambiguous or missing rather than inventing it.
+
+    Extract the core problem the brief is really trying to solve (not just what it
+    says on the surface), the target users, hard constraints (technical, budget, time,
+    regulatory), and what success concretely looks like. Surface anything ambiguous or
+    missing as a named open question — do not invent answers.
+
+    ── HUMAN VALIDATION PROTOCOL ─────────────────────────────────────────────
+    After producing your brief, structure your output with two additional sections:
+
+    BLOCKERS (resolve before proceeding):
+    List every ambiguity that, if assumed incorrectly, would invalidate the entire
+    downstream pipeline. Present ONE blocker at a time with:
+      - BLOCKER-ID: BLK-<number> (e.g. BLK-1)
+      - Evidence: the exact phrase from the brief that is ambiguous
+      - Question: the single yes/no or short-answer question the human must resolve
+
+    DEFERRALS (log and continue):
+    List minor uncertainties the team can proceed with and revisit later.
+    Each deferral: DEFER-<number> — what is uncertain, what assumption you are making.
+
+    When the human responds, incorporate their resolutions into your final brief
+    before execution continues. If they press Enter with no response, treat all
+    blockers as resolved with the most conservative interpretation.
+    ──────────────────────────────────────────────────────────────────────────
   expected_output: >
-    A concise project brief in markdown: Problem, Users, Constraints, Success Signals,
-    Open Questions.
+    A structured project brief with exactly these fields:
+    - problem: one paragraph describing the real problem being solved
+    - target_users: who the users are and what they need
+    - constraints: a list of hard constraints (technical, business, scope)
+    - success_signals: a list of concrete, measurable success criteria
+    - open_questions: a list of ambiguities or missing information that must be resolved
+
+    Followed by BLOCKERS and DEFERRALS sections per the validation protocol above.
+
+    NOTE: this task uses a Pydantic output model — populate all five fields.
   agent: analyst
 
 write_prd:
   description: >
-    Using the project brief, write a PRD for "{project}": Goals, Non-Goals,
-    Prioritized Scope, and 3-6 Epics each with a one-line value statement.
+    Using the analyst's project brief, write a focused PRD for "{project}".
+    Goals (what we're building and why), Non-goals (what we are explicitly not doing),
+    Scope using MoSCoW (Must/Should/Could/Won't), and 3–6 Epics each with a one-line
+    value statement. Cut anything that doesn't earn its place.
   expected_output: >
-    A PRD in markdown with sections: Goals, Non-Goals, Scope (MoSCoW), Epics.
+    A PRD in markdown with these sections:
+    ## Goals
+    ## Non-Goals
+    ## Scope (MoSCoW table)
+    ## Epics
+    Each epic: name, one-sentence value statement, and 2–3 capability bullet points.
   agent: pm
   context: [analyze_brief]
 
 ux_spec:
   description: >
     From the PRD, define the key user journeys for "{project}": the primary happy-path
-    flow, the screens/states involved, and the two edge states that matter most.
+    flow (numbered steps the user takes), the screens or states touched at each step,
+    and the two most important edge states the product must handle correctly.
+    Keep it lean — flows and intent, no pixel-pushing.
   expected_output: >
-    A lightweight UX spec in markdown: Primary Journey (numbered steps),
-    Screens/States, Critical Edge States.
+    A lightweight UX spec in markdown:
+    ## Primary Journey
+    Numbered steps the user takes from entry to goal achievement.
+    ## Screens / States
+    One-line description of each screen or state touched.
+    ## Critical Edge States
+    Two edge states with: trigger, expected behaviour, and error message (if applicable).
   agent: ux
   context: [write_prd]
 
 refine_backlog:
   description: >
-    Validate the PRD and UX spec for "{project}" for coherence. Tighten the epics into
-    a refined backlog with testable acceptance criteria; flag any gaps or contradictions.
+    Validate the PRD and UX spec for "{project}" for coherence. For each epic from
+    the PRD, tighten the acceptance criteria to be testable (Given/When/Then where
+    helpful). Flag any gaps between the PRD scope and the UX spec, and any
+    contradictions in the acceptance criteria.
   expected_output: >
-    A refined backlog in markdown: per-epic acceptance criteria (Given/When/Then where
-    useful) plus a short "Issues & Gaps" list.
+    A refined backlog in markdown:
+    ## Epics & Acceptance Criteria
+    Per epic: acceptance criteria in Given/When/Then format.
+    ## Gaps & Contradictions
+    Bullet list of anything inconsistent or missing between PRD and UX spec.
   agent: po
   context: [write_prd, ux_spec]
 
 design_architecture:
   description: >
-    Produce the solution architecture for "{project}" from the PRD and refined backlog:
-    components and their boundaries, data flow, technology choices with honest
-    trade-offs, and the top implementation risks.
+    Produce the solution architecture for "{project}" from the PRD and refined backlog.
+    Define the components and their boundaries, the data flow between them, and
+    technology choices with honest trade-offs stated for each. Identify the top 3–5
+    implementation risks and a mitigation for each. Prefer boring, proven technology.
+    Every technology choice must reference a specific requirement or constraint from
+    the PRD — no choices without evidence.
+
+    ── HUMAN VALIDATION PROTOCOL ─────────────────────────────────────────────
+    After presenting your architecture, add two sections:
+
+    BLOCKERS (resolve before dev starts):
+    Surface ONE blocker at a time — technology choices, component boundaries, or
+    risks that are too consequential to assume. Format:
+      - BLOCKER-ID: BLK-<number>
+      - Evidence: the specific PRD requirement or constraint driving the decision
+      - Options: 2–3 concrete alternatives with their trade-offs
+      - Question: the single decision the human must make
+
+    DEFERRALS (log and continue):
+    Minor architectural decisions you have made with a stated assumption that the
+    human can override later. Format: DEFER-<number> — decision made, assumption,
+    revisit condition.
+
+    Wait for human response. Incorporate any overrides into the final architecture
+    before execution continues.
+    ──────────────────────────────────────────────────────────────────────────
   expected_output: >
-    An architecture doc in markdown: Component Overview, Data Flow, Technology Choices
-    (+ trade-offs), Top Risks & Mitigations.
+    A structured architecture document with exactly these fields:
+    - components: list of component names and one-line descriptions
+    - technology_choices: list of "Technology: rationale (trade-off)" strings
+    - top_risks: list of "Risk: mitigation" strings (top 3–5)
+    - data_flow_summary: one paragraph describing how data moves through the system
+
+    Followed by BLOCKERS and DEFERRALS sections per the validation protocol above.
+
+    NOTE: this task uses a Pydantic output model — populate all four fields.
   agent: architect
   context: [write_prd, refine_backlog]
 
 slice_stories:
   description: >
     Slice the architecture and refined backlog for "{project}" into implementable epics
-    and user stories. Sequence them to retire risk early.
+    and user stories. Sequence them to retire risk early — data model before UI,
+    skeleton before polish. Each story must be independently deployable.
   expected_output: >
-    An epics & stories list in markdown: each story as "As a <role>, I want <x>, so that
-    <value>" with acceptance criteria and a suggested order.
+    An epics & stories list in markdown:
+    ## Epic N: <name>
+    ### Story N.M: As a <role>, I want <x>, so that <value>
+    **Acceptance Criteria:** testable conditions (Given/When/Then)
+    **Suggested order:** numbered delivery sequence with rationale.
   agent: sm
   context: [design_architecture, refine_backlog]
 
 implement_story:
   description: >
-    Take the single highest-priority story for "{project}" and implement it. Respect the
-    architecture's boundaries. Provide the key code (or a precise implementation plan
-    with the critical code) that satisfies the story's acceptance criteria.
+    Take the single highest-priority story for "{project}" and implement it.
+    Respect the architecture's component boundaries and technology choices exactly.
+    Write the actual working code — every file needed to satisfy the story's
+    acceptance criteria.
+
+    {github_repo_instruction}
   expected_output: >
-    An implementation in markdown: the story being built, the code / diff, and how it
-    meets each acceptance criterion.
+    An implementation report in markdown:
+    ## Story implemented
+    Name and acceptance criteria being addressed.
+    ## Code
+    Full source code for every file changed (one fenced code block per file,
+    with the file path as the block label).
+    ## Acceptance criteria met
+    For each criterion: how the code satisfies it.
+    ## GitHub
+    Branch name, commit SHAs, and PR URL (if GitHub tools were used).
   agent: dev
   context: [slice_stories, design_architecture]
 
 qa_review:
   description: >
     Review the implementation for "{project}" against its story and the architecture.
-    Produce a QA report with a test plan, residual risks, and a ship / no-ship decision.
+    Test the happy path, the two critical edge states, and the most likely failure
+    condition. Every finding must reference a specific acceptance criterion, code section,
+    or architectural boundary — no invented findings. Produce an honest QA report with
+    a clear SHIP or NO-SHIP verdict.
+
+    ── HUMAN VALIDATION PROTOCOL ─────────────────────────────────────────────
+    After presenting your QA report, add a SIGN-OFF REQUEST section:
+
+    SIGN-OFF REQUEST:
+    Quinn's verdict: [SHIP / NO-SHIP]
+    One-line rationale: <your rationale here>
+
+    If NO-SHIP, list required changes as BLOCKER items, ONE at a time:
+      - BLOCKER-ID: BLK-<number>
+      - Finding: exact acceptance criterion or architectural rule that was violated
+      - Evidence: specific line, file, or behaviour observed
+      - Required change: the concrete fix needed before this can ship
+
+    The human reviewer may:
+      A) Type "SHIP" or "NO-SHIP" to override Quinn's verdict with their own call.
+      B) Press Enter to accept Quinn's recommendation.
+      C) Provide feedback that Quinn must incorporate and resubmit.
+
+    Record the final human decision (or confirmed Quinn decision) in your output.
+    ──────────────────────────────────────────────────────────────────────────
   expected_output: >
-    A QA report in markdown: Test Plan, Verified, Residual Risks, Decision (SHIP /
-    NO-SHIP with reason).
+    A structured QA report with exactly these fields:
+    - decision: either "SHIP" or "NO-SHIP" (no other values accepted)
+    - rationale: one sentence explaining the decision
+    - verified: list of acceptance criteria or behaviours confirmed working
+    - residual_risks: list of risks that remain after testing (may be empty for SHIP)
+
+    Followed by a SIGN-OFF REQUEST section per the validation protocol above.
+
+    NOTE: this task uses a Pydantic output model AND a guardrail that will reject the
+    output if 'SHIP' or 'NO-SHIP' does not appear. Populate all four fields.
   agent: qa
   context: [implement_story, slice_stories]

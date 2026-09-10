@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bmad-crew-ui
+  namespace: bmad-crew
+  labels:
+    app: bmad-crew-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bmad-crew-ui
+  template:
+    metadata:
+      labels:
+        app: bmad-crew-ui
+    spec:
+      containers:
+        - name: ui
+          # Build and push this image via:
+          #   docker build -t ghcr.io/isitobservable/bmad-crew-ui:latest ./ui
+          #   docker push ghcr.io/isitobservable/bmad-crew-ui:latest
+          image: ghcr.io/isitobservable/bmad-crew-ui:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: bmad-crew-ui
+          # If COPILOTKIT_ADAPTER=openai or anthropic, put the key in a secret.
+          # env:
+          #   - name: OPENAI_API_KEY
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: bmad-crew-ui-secrets
+          #         key: OPENAI_API_KEY
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20

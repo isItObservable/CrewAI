@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bmad-crew-ui
+  namespace: bmad-crew
+data:
+  # How browser → FastAPI traffic is routed:
+  #
+  #   Browser  →  /api/crew/...  →  Next.js rewrite  →  FastAPI pod
+  #
+  # NEXT_PUBLIC_BMAD_CREW_URL is baked into the JS bundle at image build time
+  # (set to /api/crew in the GitHub Actions workflow).  It cannot be overridden
+  # here at runtime — this ConfigMap entry is intentionally absent.
+  # All browser fetch/EventSource calls therefore use relative paths; Next.js
+  # proxies them to FastAPI using the server-side BMAD_CREW_URL below.
+
+  # Server-side: URL the Next.js pod uses to reach the FastAPI backend.
+  # Stays internal — the browser never needs a direct route to FastAPI.
+  # Service port is 80 (→ container 8000); no explicit port needed.
+  BMAD_CREW_URL: "http://bmad-crew.bmad-crew.svc.cluster.local"
+
+  # CopilotKit LLM adapter: ollama | openai | anthropic
+  COPILOTKIT_ADAPTER: "ollama"
+
+  # Ollama host (must be reachable from the ui pod, not the browser).
+  OLLAMA_BASE_URL: "http://<your-ollama-host>:11434"
+  OLLAMA_MODEL: "qwen3.6"

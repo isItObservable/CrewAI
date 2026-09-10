@@ -201,7 +201,7 @@ class OTelCrewAIListener(BaseEventListener):
             name = _get(event, "crew_name", default="crew")
             span = self._start(_ck(event), f"crew {name}", SpanKind.SERVER, {
                 "gen_ai.system": GEN_AI_SYSTEM,
-                "gen_ai.operation.name": "invoke_agent",
+                "gen_ai.operation.name": "invoke_workflow",
                 "crewai.crew.name": name,
                 "service.name": self._service_name,
             }, parent=None)

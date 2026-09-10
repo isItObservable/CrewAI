@@ -12,9 +12,13 @@ WORKDIR /app
 COPY bmad-crew/pyproject.toml ./
 RUN uv pip install --system --no-cache -r pyproject.toml
 
-# Copy the application source and install the package itself.
+# Copy the application source and install the package with ALL observability extras
+# so CREWAI_INSTRUMENTATION can be toggled at runtime without a rebuild.
+#   openlit (default)  — included in base deps
+#   openllmetry extra  — traceloop-sdk
+#   native extra       — opentelemetry-sdk + exporters
 COPY bmad-crew/ ./
-RUN uv pip install --system --no-cache .
+RUN uv pip install --system --no-cache ".[all-observability]"
 
 # CrewAI writes memory/telemetry consent under $HOME; make it writable & non-root.
 ENV HOME=/app CREWAI_STORAGE_DIR=/app/.crewai CREWAI_DISABLE_TELEMETRY=true

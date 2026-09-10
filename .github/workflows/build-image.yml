@@ -1,9 +1,12 @@
 name: build-image
 
-# Builds the bmad-crew container image on GitHub's runners and publishes it to
-# GHCR using the repo-scoped GITHUB_TOKEN — no personal PAT, no local docker.
-# The Dockerfile lives at the repo root and COPYs from bmad-crew/, so the build
-# context must be the repo root (.).
+# Builds and pushes TWO container images to GHCR on every push to main/master
+# or on a version tag, using the repo-scoped GITHUB_TOKEN (no personal PAT).
+#
+#   ghcr.io/isitobservable/bmad-crew     — FastAPI backend (bmad-crew/)
+#   ghcr.io/isitobservable/bmad-crew-ui  — Next.js + CopilotKit frontend (ui/)
+#
+# Path filters keep each job idle when only the other half of the repo changes.
 
 on:
   push:
@@ -16,8 +19,15 @@ permissions:
   packages: write
 
 jobs:
-  build:
+  # ── Backend: FastAPI BMAD crew ──────────────────────────────────────────────
+  build-backend:
     runs-on: ubuntu-latest
+    # Only run when backend files change (or on a version tag / manual trigger).
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      contains(github.event.commits[0].modified, 'bmad-crew/') ||
+      contains(github.event.commits[0].modified, 'Dockerfile')
     steps:
       - uses: actions/checkout@v4
 
@@ -30,7 +40,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Derive image tags
+      - name: Derive backend image tags
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -41,12 +51,66 @@ jobs:
             type=sha
             type=semver,pattern={{version}}
 
-      - name: Build and push
+      - name: Build and push backend
         uses: docker/build-push-action@v6
         with:
+          # Build context is repo root; Dockerfile COPYs from bmad-crew/.
           context: .
           file: Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Frontend: Next.js + CopilotKit UI ───────────────────────────────────────
+  build-ui:
+    runs-on: ubuntu-latest
+    # Only run when UI files change (or on a version tag / manual trigger).
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      contains(github.event.commits[0].modified, 'ui/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive UI image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/isitobservable/bmad-crew-ui
+          tags: |
+            type=raw,value=latest
+            type=raw,value=1.0.0
+            type=sha
+            type=semver,pattern={{version}}
+
+      - name: Build and push UI
+        uses: docker/build-push-action@v6
+        with:
+          # Build context is ui/ — Dockerfile lives there and COPYs relative paths.
+          context: ui
+          file: ui/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            # Bake /api/crew as the browser-side base URL so ALL fetch/EventSource
+            # calls from the browser use relative paths that Next.js rewrites
+            # server-side to the FastAPI pod (BMAD_CREW_URL in the ConfigMap).
+            # The image is cluster-portable: no rebuild when the cluster IP changes.
+            # Override only if you expose FastAPI directly to the browser.
+            NEXT_PUBLIC_BMAD_CREW_URL=/api/crew

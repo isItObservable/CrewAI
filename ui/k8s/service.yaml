@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bmad-crew-ui
+  namespace: bmad-crew
+  labels:
+    app: bmad-crew-ui
+spec:
+  selector:
+    app: bmad-crew-ui
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 3000
+  # LoadBalancer for GKE; change to NodePort or ClusterIP for homelab + ingress.
+  type: LoadBalancer

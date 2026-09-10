@@ -12,8 +12,38 @@ dependencies = [
     # HTTP service for the k8s deployment.
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
-    # OpenTelemetry via OpenLIT (gen_ai.* spans + GenAI metrics, OTLP-native).
+    # Path A: OpenLIT auto-instrumentation (default, gen_ai.* spans + GenAI metrics).
+    # Switched at runtime via CREWAI_INSTRUMENTATION=openlit (the default).
     "openlit>=1.33.0",
+]
+
+[project.optional-dependencies]
+# Path B: OpenLLMetry (Traceloop) auto-instrumentation.
+# Install: pip install bmad-crew[openllmetry]
+# Enable:  CREWAI_INSTRUMENTATION=openllmetry
+openllmetry = [
+    "traceloop-sdk>=0.38.0",
+]
+
+# Path C: Native CrewAI event-bus → OTel SDK listener.
+# Install: pip install bmad-crew[native]
+# Enable:  CREWAI_INSTRUMENTATION=native
+native = [
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-sdk>=1.27.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.27.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.27.0",
+]
+
+# All three paths in one image — use this for the demo Docker image so that
+# CREWAI_INSTRUMENTATION can be toggled at runtime without a rebuild.
+# Install: pip install bmad-crew[all-observability]
+all-observability = [
+    "traceloop-sdk>=0.38.0",
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-sdk>=1.27.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.27.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.27.0",
 ]
 
 [project.scripts]
