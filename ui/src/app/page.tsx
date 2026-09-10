@@ -166,10 +166,7 @@ function CrewApp() {
         labels={{
           title: "BMAD Assistant",
           placeholder: "Describe your project brief…",
-          initial: CHAT_SUGGESTIONS.map((s) => ({
-            message: s,
-            label: s.slice(0, 50) + (s.length > 50 ? "…" : ""),
-          })),
+          initial: CHAT_SUGGESTIONS,
         }}
         instructions={
           "You are the BMAD Crew assistant. When the user describes a project, " +
