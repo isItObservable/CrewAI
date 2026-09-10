@@ -108,7 +108,7 @@ function CrewApp() {
           <span className="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
           Starting crew pipeline…
         </div>
-      ) : null,
+      ) : <></>,
   });
 
   // Offer contextual suggestions in the empty chat state.
