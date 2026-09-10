@@ -20,7 +20,7 @@ spec:
           # Build and push this image via:
           #   docker build -t ghcr.io/isitobservable/bmad-crew-ui:latest ./ui
           #   docker push ghcr.io/isitobservable/bmad-crew-ui:latest
-          image: ghcr.io/isitobservable/bmad-crew-ui:latest
+          image: ghcr.io/isitobservable/bmad-crew-ui:sha-57d5a9e
           imagePullPolicy: Always
           ports:
             - name: http
