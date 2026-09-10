@@ -6,7 +6,7 @@ name: build-image
 #   ghcr.io/isitobservable/bmad-crew     — FastAPI backend (bmad-crew/)
 #   ghcr.io/isitobservable/bmad-crew-ui  — Next.js + CopilotKit frontend (ui/)
 #
-# Path filters keep each job idle when only the other half of the repo changes.
+# Both jobs run on every push; GHA layer cache keeps reruns fast.
 
 on:
   push:
@@ -22,12 +22,6 @@ jobs:
   # ── Backend: FastAPI BMAD crew ──────────────────────────────────────────────
   build-backend:
     runs-on: ubuntu-latest
-    # Only run when backend files change (or on a version tag / manual trigger).
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      startsWith(github.ref, 'refs/tags/') ||
-      contains(github.event.commits[0].modified, 'bmad-crew/') ||
-      contains(github.event.commits[0].modified, 'Dockerfile')
     steps:
       - uses: actions/checkout@v4
 
@@ -67,11 +61,6 @@ jobs:
   # ── Frontend: Next.js + CopilotKit UI ───────────────────────────────────────
   build-ui:
     runs-on: ubuntu-latest
-    # Only run when UI files change (or on a version tag / manual trigger).
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      startsWith(github.ref, 'refs/tags/') ||
-      contains(github.event.commits[0].modified, 'ui/')
     steps:
       - uses: actions/checkout@v4
 
