@@ -21,7 +21,7 @@
  * /stream/{run_id} and lights up each agent as it executes.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CopilotKit } from "@copilotkit/react-core";
 import { CopilotSidebar, useCopilotChatSuggestions } from "@copilotkit/react-ui";
 import { useCopilotAction } from "@copilotkit/react-core";
@@ -186,10 +186,20 @@ function CrewApp() {
 
 // ---------------------------------------------------------------------------
 // Root page — wraps with CopilotKit provider
+// CopilotKit 1.71+ calls new URL(runtimeUrl) which requires an absolute URL.
+// Build it client-side from window.location.origin to stay cluster-portable.
 // ---------------------------------------------------------------------------
 export default function Page() {
+  const [runtimeUrl, setRuntimeUrl] = useState<string>("");
+
+  useEffect(() => {
+    setRuntimeUrl(`${window.location.origin}/api/copilotkit`);
+  }, []);
+
+  if (!runtimeUrl) return null;
+
   return (
-    <CopilotKit runtimeUrl="/api/copilotkit">
+    <CopilotKit runtimeUrl={runtimeUrl}>
       <CrewApp />
     </CopilotKit>
   );
