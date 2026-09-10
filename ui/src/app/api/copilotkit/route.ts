@@ -69,9 +69,12 @@ const runtime = new CopilotRuntime({
 
 // ---------------------------------------------------------------------------
 // Next.js App Router POST handler
+// In @copilotkit/runtime >=1.9 the endpoint helper returns { handleRequest }
+// rather than { POST } — re-export under the Next.js convention.
 // ---------------------------------------------------------------------------
-export const { POST } = copilotRuntimeNextJSAppRouterEndpoint({
+const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
   runtime,
   serviceAdapter: buildAdapter(),
   endpoint: "/api/copilotkit",
 });
+export const POST = handleRequest;
