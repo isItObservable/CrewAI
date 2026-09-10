@@ -30,7 +30,52 @@ Two transports are supported via ``GITHUB_MCP_MODE``:
 from __future__ import annotations
 
 import os
-from typing import List
+from typing import Any, List
+
+
+def _normalize_json_schema(schema: Any) -> Any:
+    """Recursively convert union type arrays to 'string'.
+
+    GitHub's MCP server uses JSON Schema union types like ``{"type": ["string", "number",
+    "boolean"]}`` which is valid JSON Schema but crewai's ``create_model_from_schema``
+    only handles scalar type strings.  Coercing to ``"string"`` is lossy but safe: the
+    LLM passes string values and the GitHub API coerces them on its side.
+    """
+    if isinstance(schema, list):
+        return [_normalize_json_schema(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+    result: dict[str, Any] = {}
+    for key, value in schema.items():
+        if key == "type" and isinstance(value, list):
+            result[key] = "string"
+        else:
+            result[key] = _normalize_json_schema(value)
+    return result
+
+
+def _patch_create_model_from_schema() -> None:
+    """Monkey-patch crewai's schema→Pydantic converter to tolerate union type arrays.
+
+    Called once at module load time; idempotent (guarded by _PATCHED flag).
+    """
+    try:
+        import crewai.utilities.pydantic_schema_utils as _m
+
+        if getattr(_m, "_union_type_patch_applied", False):
+            return
+        _orig = _m.create_model_from_schema
+
+        def _patched(json_schema: Any, **kwargs: Any) -> Any:
+            return _orig(_normalize_json_schema(json_schema), **kwargs)
+
+        _m.create_model_from_schema = _patched
+        _m._union_type_patch_applied = True  # type: ignore[attr-defined]
+    except Exception:
+        pass  # if crewai internals change, degrade gracefully
+
+
+_patch_create_model_from_schema()
 
 # Started adapters are kept referenced for the lifetime of the process so their MCP
 # connection is not garbage-collected (and closed) while a crew run is still in flight.
