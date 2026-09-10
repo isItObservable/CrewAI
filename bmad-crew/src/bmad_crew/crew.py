@@ -363,8 +363,26 @@ class BmadCrew:
     def crew(self) -> Crew:
         """Sequential BMAD pipeline (Option A — the default, cleanest to observe)."""
         return Crew(
-            agents=self.agents,
-            tasks=self.tasks,
+            agents=[
+                self.analyst(),
+                self.pm(),
+                self.ux(),
+                self.po(),
+                self.architect(),
+                self.sm(),
+                self.dev(),
+                self.qa(),
+            ],
+            tasks=[
+                self.analyze_brief(),
+                self.write_prd(),
+                self.ux_spec(),
+                self.refine_backlog(),
+                self.design_architecture(),
+                self.slice_stories(),
+                self.implement_story(),
+                self.qa_review(),
+            ],
             process=Process.sequential,
             verbose=True,
         )
@@ -376,8 +394,26 @@ class BmadCrew:
         Note: human_input tasks still pause in hierarchical mode.
         """
         return Crew(
-            agents=self.agents,
-            tasks=self.tasks,
+            agents=[
+                self.analyst(),
+                self.pm(),
+                self.ux(),
+                self.po(),
+                self.architect(),
+                self.sm(),
+                self.dev(),
+                self.qa(),
+            ],
+            tasks=[
+                self.analyze_brief(),
+                self.write_prd(),
+                self.ux_spec(),
+                self.refine_backlog(),
+                self.design_architecture(),
+                self.slice_stories(),
+                self.implement_story(),
+                self.qa_review(),
+            ],
             process=Process.hierarchical,
             manager_llm=self.llm,
             verbose=True,
