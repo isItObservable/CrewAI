@@ -101,6 +101,23 @@ next. When it finishes, read the full delivery:
 cat output/qa_report.md
 ```
 
+```bash
+# HITL mode (default) — agents pause for human validation at 3 checkpoints:
+#   1. After analyst: validate requirements (BLK-N blockers surfaced one at a time)
+#   2. After architect: validate tech stack
+#   3. After QA: final SHIP / NO-SHIP sign-off
+# Decisions written to output/decisions.memlog.md
+uv run bmad-crew
+
+# Fully automated (no pauses — for CI / scripted runs):
+uv run bmad-crew --no-hitl
+
+# With GitHub MCP (dev agent creates branch, commits files, opens PR):
+uv run bmad-crew --github-repo owner/myrepo --no-hitl
+# Requires GITHUB_PERSONAL_ACCESS_TOKEN and GITHUB_MCP_MODE in env.
+# See docs/github-mcp-demo.md for the full setup.
+```
+
 > **Optional — dynamic delegation (the CrewAI "wow" beat).** Add `--hierarchical` to run
 > a BMad-Orchestrator manager that delegates dynamically (`Process.hierarchical`). It's
 > heavier on the model's tool-calling and non-deterministic — great for a contrast
@@ -125,6 +142,23 @@ Leave `OTEL_EXPORTER_OTLP_ENDPOINT` unset to run without telemetry (no crash).
 `OTEL_SDK_DISABLED=true` is the hard off-switch. The Collector → Dynatrace pipeline and
 the dashboards live in [`observability/README.md`](./observability/README.md).
 
+### 5.1 Choose your instrumentation path
+
+Three drop-in options emit to the same Collector → Dynatrace pipeline. Switch by setting
+`CREWAI_INSTRUMENTATION` (no rebuild — the image ships all three):
+
+| Value | Library | Notes |
+|-------|---------|-------|
+| `openlit` (default) | openlit | gen_ai.* spans + GenAI metrics out of the box |
+| `openllmetry` | traceloop-sdk | Traceloop ecosystem; token attr names differ slightly |
+| `native` | opentelemetry-sdk only | Full control; no third-party auto-instrumentation |
+
+```bash
+export CREWAI_INSTRUMENTATION=native   # switch path; restart crew
+uv run bmad-crew
+# console: [bmad-crew] Instrumentation path: Native event-bus (crewai_otel)
+```
+
 ---
 
 ## 6. Containerize
@@ -134,26 +168,29 @@ pushes it **for you** on GitHub's runners.
 
 ### 6.1 CI build (recommended — no local docker, no PAT)
 
-`.github/workflows/build-image.yml` builds the image and pushes it to GHCR using
+`.github/workflows/build-image.yml` builds **two images** and pushes them to GHCR using
 the built-in `GITHUB_TOKEN`, which carries `packages: write` **scoped to this repo
-only** — no personal access token required. It runs on:
+only** — no personal access token required. The workflow has two jobs:
+
+- **`build-backend`** — builds `ghcr.io/isitobservable/bmad-crew` from the repo root
+  `Dockerfile`. Only runs when backend files change.
+- **`build-ui`** — builds `ghcr.io/isitobservable/bmad-crew-ui` from `ui/Dockerfile`.
+  Only runs when UI files change.
+
+Both jobs trigger on:
 
 - every push to `main` / `master`,
 - any `v*` tag (semver-tagged release images), and
 - a manual **workflow_dispatch** from the Actions tab.
 
-So the workflow is: **push (or open the Actions tab → Run workflow) → GitHub builds
-the image → it lands at `ghcr.io/isitobservable/bmad-crew:latest` and `:1.0.0`.**
-The Dockerfile lives at the repo root and `COPY`s from `bmad-crew/`, so the workflow
-sets the build context to the repo root (`context: .`) and `platforms: linux/amd64`
-(the Kubernetes workers are amd64; the Mac Studio only hosts Ollama).
+Path filtering means a pure UI change will not rebuild the backend image and vice versa.
 
-> **First publish is private.** GHCR packages default to *private*. After the first
-> green run, a package admin sets the `bmad-crew` package **Public** (Package →
-> Settings → Change visibility) so the cluster can pull it without an
-> `imagePullSecret`. Do this once.
+> **First publish is private.** GHCR packages default to *private*. After each job's
+> first green run, set the corresponding package **Public** (Package → Settings →
+> Change visibility) so the cluster can pull it without an `imagePullSecret`.
+> Do this once for each package (`bmad-crew` and `bmad-crew-ui`).
 
-Watch the run under the repo's **Actions** tab; the published image shows up under
+Watch the run under the repo's **Actions** tab; both published images show up under
 the org's **Packages**.
 
 ### 6.2 Local build (offline fallback)
@@ -255,14 +292,51 @@ kubectl -n bmad-crew rollout status deploy/bmad-crew
 
 ---
 
+## 8.5 Deploy the CopilotKit UI
+
+The browser-based demo frontend. Edit `ui/k8s/configmap.yaml` if needed
+(`OLLAMA_BASE_URL`, `COPILOTKIT_ADAPTER`), then:
+
+```bash
+kubectl apply -f ui/k8s/configmap.yaml
+kubectl apply -f ui/k8s/deployment.yaml
+kubectl apply -f ui/k8s/service.yaml
+kubectl -n bmad-crew rollout status deploy/bmad-crew-ui
+
+# Get the URL:
+kubectl get svc bmad-crew-ui -n bmad-crew
+# EXTERNAL-IP → http://<ip>/  (LoadBalancer, cloud clusters)
+
+# Local clusters (kind/k3d/minikube):
+./scripts/deploy.sh --port-forward   # opens http://localhost:3000 automatically
+
+# Or use the deploy script for everything at once:
+./scripts/deploy.sh
+```
+
+**Traffic flow:** Browser → `/api/crew/*` → Next.js rewrite → FastAPI pod (ClusterIP,
+internal). The FastAPI backend is never directly exposed to the internet — all external
+traffic enters through the UI's LoadBalancer service.
+
+---
+
 ## 9. Run and verify
 
 ```bash
+# Option A — browser demo via CopilotKit UI
+# Open http://<bmad-crew-ui-EXTERNAL-IP>
+# Type a project brief in the chat sidebar → watch agents light up → read QA report
+
+# Option B — curl (headless)
 kubectl -n bmad-crew port-forward svc/bmad-crew 8080:80 &
-curl -s localhost:8080/kickoff \
+curl -s localhost:8080/kickoff/async \
   -H 'content-type: application/json' \
-  -d '{"project":"Status page","brief":"A public SLO status page..."}' | jq -r .result
+  -d '{"project":"Status page","brief":"A public SLO status page..."}' | jq .
+# returns {"run_id": "..."} — poll /run/{run_id}/result or stream /stream/{run_id}
 ```
+
+`/kickoff` (sync) still works for quick tests; `/kickoff/async` + `/stream/{run_id}` is
+what the UI uses for live streaming.
 
 Then confirm telemetry landed:
 
@@ -292,6 +366,10 @@ the OTLP endpoint is wrong, or the Collector isn't forwarding — walk the pipel
 | Tool-calling / delegation flaky | qwen tool-calling can wobble; fall back to sequential (drop `--hierarchical`) |
 | No spans in Dynatrace | `OTEL_EXPORTER_OTLP_ENDPOINT` unset/wrong, or Collector not forwarding |
 | `import crewai.project` fails | Version drift — verify the decorator import path for your CrewAI version |
+| UI pod CrashLoopBackoff | `BMAD_CREW_URL` wrong or Ollama unreachable from ui pod — check configmap and Ollama egress |
+| Chat sidebar shows no response | `COPILOTKIT_ADAPTER=ollama` but `OLLAMA_BASE_URL` unreachable from ui pod |
+| Double crew run on kickoff | `kickoff_crew` must be client-side only (`useCopilotAction` in `page.tsx`) — `route.ts` must have empty actions array |
+| HITL never pauses | `BMAD_HUMAN_IN_LOOP=false` in ConfigMap — set to `true` for interactive mode |
 
 ---
 
