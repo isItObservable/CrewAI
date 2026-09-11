@@ -197,59 +197,31 @@ uv run bmad-crew
 
 ---
 
-## 6. Containerize
+## 6. Container images (pre-built — no action needed)
 
-You don't need docker on your laptop to publish the image — the repo builds and
-pushes it **for you** on GitHub's runners.
+The images are already built and publicly available on GHCR. The deployment manifests
+already reference the correct tag — **you do not need to build or push anything.**
 
-### 6.1 CI build (recommended — no local docker, no PAT)
+| Image | Registry |
+|-------|----------|
+| Backend (FastAPI crew server) | `ghcr.io/isitobservable/bmad-crew:sha-5535823` |
+| Frontend (CopilotKit UI) | `ghcr.io/isitobservable/bmad-crew-ui:sha-5535823` |
 
-`.github/workflows/build-image.yml` builds **two images** and pushes them to GHCR using
-the built-in `GITHUB_TOKEN`, which carries `packages: write` **scoped to this repo
-only** — no personal access token required. The workflow has two jobs:
-
-- **`build-backend`** — builds `ghcr.io/isitobservable/bmad-crew` from the repo root
-  `Dockerfile`. Only runs when backend files change.
-- **`build-ui`** — builds `ghcr.io/isitobservable/bmad-crew-ui` from `ui/Dockerfile`.
-  Only runs when UI files change.
-
-Both jobs trigger on:
-
-- every push to `main` / `master`,
-- any `v*` tag (semver-tagged release images), and
-- a manual **workflow_dispatch** from the Actions tab.
-
-Path filtering means a pure UI change will not rebuild the backend image and vice versa.
-
-> **First publish is private.** GHCR packages default to *private*. After each job's
-> first green run, set the corresponding package **Public** (Package → Settings →
-> Change visibility) so the cluster can pull it without an `imagePullSecret`.
-> Do this once for each package (`bmad-crew` and `bmad-crew-ui`).
-
-Watch the run under the repo's **Actions** tab; both published images show up under
-the org's **Packages**.
-
-### 6.2 Local build (offline fallback)
-
-If you're offline or want to iterate on the image locally, build it yourself from
-the **repo root** (the Dockerfile expects the root as build context):
+You can verify the images are accessible before deploying:
 
 ```bash
-cd ..                                        # back to CrewAI/
-docker build -t ghcr.io/isitobservable/bmad-crew:1.0.0 .
-# Smoke-test the service locally:
-docker run --rm -p 8000:8000 \
-  -e OLLAMA_BASE_URL=http://<your-ollama-host>:11434 \
-  ghcr.io/isitobservable/bmad-crew:1.0.0
-curl localhost:8000/healthz
+docker pull ghcr.io/isitobservable/bmad-crew:sha-5535823
+docker pull ghcr.io/isitobservable/bmad-crew-ui:sha-5535823
 ```
 
-The image serves the **kickoff API** (`server.py`): `POST /kickoff` runs the crew
-synchronously; `GET /healthz` is the probe target.
-
-```bash
-docker push ghcr.io/isitobservable/bmad-crew:1.0.0    # needs `packages:write` on the org
-```
+> **Forking and modifying the code?** Push your changes to `main` on your fork.
+> `.github/workflows/build-image.yml` builds and publishes both images automatically
+> using the repo's built-in `GITHUB_TOKEN` — no personal access token required.
+> After the first successful run, set each package to **Public**
+> (Package → Settings → Change visibility) so the cluster can pull without an
+> `imagePullSecret`. Then update the `image:` tag in `k8s/deployment.yaml` and
+> `ui/k8s/deployment.yaml` to match the new `sha-<7-char-git-sha>` shown in the
+> Actions run.
 
 ---
 
@@ -306,23 +278,71 @@ manifest differences are in [`docs/cluster-setup.md`](./docs/cluster-setup.md).
 
 ## 8. Deploy to Kubernetes
 
-The ConfigMap files contain `${OLLAMA_HOST}` placeholders. Use `envsubst` to substitute
-your variables before applying — no file editing required.
+Deploy in this order: **observability infrastructure first**, then the application.
+The ConfigMap files use `${...}` placeholders — `envsubst` fills them in at apply time
+so no secrets or IPs ever touch the repo.
 
 > **Prerequisite:** `envsubst` ships with the `gettext` package.
 > macOS: `brew install gettext`. Ubuntu/Debian: `apt-get install gettext-base`.
+
+### 8.1 Deploy the Dynatrace Operator and cluster monitor
+
+```bash
+# Add the Dynatrace Helm chart repo (once)
+helm repo add dynatrace https://raw.githubusercontent.com/Dynatrace/dynatrace-operator/main/config/helm/repos/stable
+helm repo update
+
+# Install the operator (CRDs + controller only — no DynaKube yet)
+helm install dynatrace-operator dynatrace/dynatrace-operator \
+  -n dynatrace --create-namespace
+
+# Wait for the operator to be ready
+kubectl -n dynatrace rollout status deploy/dynatrace-operator
+
+# Create the secret the DynaKube CR references under `tokens:`
+kubectl create secret generic observable-crewai \
+  -n dynatrace \
+  --from-literal=apiToken="${DT_API_TOKEN}" \
+  --from-literal=dataIngestToken="${DT_INGEST_TOKEN}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# Apply the DynaKube CR (substitutes $DT_TENANT_URL)
+envsubst < k8s/dynakube.yaml | kubectl apply -f -
+
+# Wait for the ActiveGate pod to come up
+kubectl -n dynatrace wait pod -l app.kubernetes.io/name=dynatrace-activegate \
+  --for=condition=Ready --timeout=180s
+```
+
+The ActiveGate handles **cluster-level telemetry** (K8s metrics, workload inventory).
+All application traces and logs flow through the OTel Collector in the next step.
+
+### 8.2 Deploy the OpenTelemetry Collector
+
+```bash
+# Apply the OTel Collector (substitutes $DT_TENANT_URL and $DT_INGEST_TOKEN)
+envsubst < observability/collector/k8s/otel-collector.yaml | kubectl apply -f -
+
+# Wait for the collector deployment to be ready
+kubectl -n observability rollout status deploy/otel-collector
+```
+
+The Collector receives OTLP from the crew pods and exports traces, metrics, and logs
+to Dynatrace via OTLP/HTTP.
+
+### 8.3 Deploy the BMAD crew backend
 
 ```bash
 # 1. Namespace
 kubectl apply -f k8s/namespace.yaml
 
-# 2. ConfigMap — substitute $OLLAMA_HOST (and any other vars) at apply time
+# 2. ConfigMap — substitute $OLLAMA_HOST at apply time
 envsubst < k8s/configmap.yaml | kubectl apply -f -
 
 # 3. Secret — inject your GitHub PAT directly (never commit the real value)
 kubectl create secret generic bmad-crew-secrets \
   -n bmad-crew \
-  --from-literal=GITHUB_PERSONAL_ACCESS_TOKEN="${GITHUB_PAT:-}" \
+  --from-literal=GITHUB_PERSONAL_ACCESS_TOKEN="${GITHUB_PAT}" \
   --from-literal=OPENAI_API_KEY="" \
   --dry-run=client -o yaml | kubectl apply -f -
 
@@ -343,11 +363,9 @@ kubectl -n bmad-crew rollout status deploy/bmad-crew
 2. **Memory persistence.** CrewAI memory (LanceDB) is on local disk and ephemeral in a
    pod — the `PVC` mounts it at `/app/.crewai`. Only relevant if you enable `memory=True`.
 
----
+### 8.4 Deploy the CopilotKit UI
 
-## 8.5 Deploy the CopilotKit UI
-
-The browser-based demo frontend. `ui/k8s/configmap.yaml` also contains `${OLLAMA_HOST}` —
+The browser-based frontend. `ui/k8s/configmap.yaml` also contains `${OLLAMA_HOST}` —
 use `envsubst` the same way:
 
 ```bash
@@ -373,37 +391,34 @@ traffic enters through the UI's LoadBalancer service.
 Get the LoadBalancer IP assigned to the UI service and open it in your browser:
 
 ```bash
-# Cloud cluster (GKE / EKS / AKS / MetalLB) — wait for EXTERNAL-IP to appear:
+# Wait for EXTERNAL-IP to appear (cloud cluster / MetalLB):
 kubectl get svc bmad-crew-ui -n bmad-crew
 # NAME            TYPE           CLUSTER-IP     EXTERNAL-IP      PORT(S)        AGE
 # bmad-crew-ui    LoadBalancer   10.96.x.x      <EXTERNAL-IP>    80:31234/TCP   2m
 
-# Once EXTERNAL-IP is populated, grab it and open the browser:
+# Grab the IP and open the browser:
 BMAD_UI_IP=$(kubectl get svc bmad-crew-ui -n bmad-crew \
   -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 echo "CopilotKit UI → http://${BMAD_UI_IP}"
-open "http://${BMAD_UI_IP}"        # macOS — opens your default browser
-# xdg-open "http://${BMAD_UI_IP}" # Linux alternative
+open "http://${BMAD_UI_IP}"        # macOS
+# xdg-open "http://${BMAD_UI_IP}" # Linux
 ```
 
-> **IP still `<pending>`?** The cluster's LoadBalancer controller hasn't assigned an address yet.
-> On a bare-metal cluster (no cloud LB) you need MetalLB or similar. As a quick alternative,
-> use port-forward (see below).
-
-```bash
-# Local cluster (kind / k3d / minikube) — use port-forward instead of a LoadBalancer:
-kubectl port-forward svc/bmad-crew-ui -n bmad-crew 3000:80
-# Then open http://localhost:3000 in your browser.
-```
+> **IP still `<pending>`?** The cluster's LoadBalancer controller hasn't assigned an address
+> yet. On a bare-metal cluster (no cloud LB) you need MetalLB. As a quick alternative,
+> use port-forward:
+> ```bash
+> kubectl port-forward svc/bmad-crew-ui -n bmad-crew 3000:80
+> # Open http://localhost:3000
+> ```
 
 Type a project brief in the chat sidebar, watch the **Agent Timeline** panel light up
-agent by agent (click any completed agent card to expand its output), and read the QA
-report in the output panel once the pipeline finishes.
+agent by agent (click any completed agent card to expand its full output), and read the
+QA report in the output panel once the pipeline finishes.
 
-### 9.2 Headless / curl (Option B — no browser)
+### 9.2 Headless / curl (no browser)
 
 ```bash
-# Option B — curl (headless)
 kubectl -n bmad-crew port-forward svc/bmad-crew 8080:80 &
 curl -s localhost:8080/kickoff/async \
   -H 'content-type: application/json' \
@@ -414,20 +429,46 @@ curl -s localhost:8080/kickoff/async \
 `/kickoff` (sync) still works for quick tests; `/kickoff/async` + `/stream/{run_id}` is
 what the UI uses for live streaming.
 
-Then confirm telemetry landed:
+### 9.3 Verify telemetry in Dynatrace
 
-- **Traces** — per run: `invoke_workflow BmadCrew` at the root, one
-  `invoke_agent <role>` span per agent (plus `create_agent` spans from crew
-  build-time and CrewAI-internal `invoke_agent <step>` spans beneath each), and
-  one `chat qwen3.6` span per LLM call. These are the exact span names from the
-  live deployment (OpenLIT 1.42.1).
-- **Metrics/tokens** — `gen_ai.usage.input_tokens` / `output_tokens` on every
-  `chat` span, and a run total on the `invoke_workflow` span (measured full run:
-  130,344 in / 239,104 out across 8 LLM calls).
-- **Logs** — agent/task lifecycle.
+After triggering at least one crew run, confirm all three signal types landed in
+Dynatrace:
 
-If tokens don't appear: OpenLIT isn't initialised (check the startup line in step 5),
-the OTLP endpoint is wrong, or the Collector isn't forwarding — walk the pipeline in
+**Distributed Traces**
+
+Open the Dynatrace UI → **Distributed Traces** and filter by `service.name = bmad-crew`.
+Each crew run produces one trace with this structure:
+
+```
+invoke_workflow BmadCrew           ← root span (full crew duration)
+  create_agent <role>  ×8          ← agent initialisation
+  invoke_agent <role>  ×8          ← one per BMAD agent
+    chat qwen3.6       ×N          ← one per LLM call (carries token counts)
+    execute_tool <name> ×M         ← GitHub tool calls (create_branch, etc.)
+    mcp tools/call     ×P          ← MCP protocol calls
+```
+
+**Token metrics** (`gen_ai.usage.input_tokens` / `gen_ai.usage.output_tokens`) are
+attributes on every `chat qwen3.6` span. A typical full pipeline consumes
+≈ 130k input / 240k output tokens across 8 LLM calls.
+
+**Logs**
+
+Filter logs by `service.name = bmad-crew`. You should see agent lifecycle events
+(agent started, task completed) and any tool errors.
+
+**Dashboards**
+
+Import the pre-built dashboards from `observability/dashboards/` in the repo:
+
+- **CrewAI Efficiency** — token consumption per agent, LLM latency
+- **CrewAI Health** — error rate, span counts, tool call breakdown
+- **CrewAI + CopilotKit** — end-to-end view combining UI and backend telemetry
+
+If spans are missing: check that `OTEL_EXPORTER_OTLP_ENDPOINT` in the ConfigMap
+points at the Collector (`http://otel-collector.observability.svc.cluster.local:4318`),
+that the Collector pod is running, and that the Dynatrace export token has
+`metrics.ingest` + `traces.ingest` scopes. Walk the full pipeline in
 `observability/README.md`.
 
 ---

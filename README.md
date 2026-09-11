@@ -380,6 +380,8 @@ kubectl port-forward svc/bmad-crew-ui -n bmad-crew 3000:80
 
 Type a project brief in the chat sidebar, watch agents light up one by one in the AgentTimeline, and read the full QA report in the OutputPanel once the crew finishes.
 
+<p align="center"><img src="/image/copilotkit.png" width="80%" alt="CopilotKit UI — agent timeline and chat sidebar" /></p>
+
 ```bash
 kubectl -n bmad-crew port-forward svc/bmad-crew 8080:80 &
 curl -s localhost:8080/kickoff \
@@ -406,11 +408,15 @@ dtctl dashboard create -f observability/dashboards/crewai-agentic-efficiency-das
 
 ### CrewAI BMAD Crew — Health
 *Is the crew up and succeeding?* Kubernetes workload CPU / memory / network, request throughput / failures / response time per agent service, agent-run success and failure counts, run-latency p50 / p90, task-execution throughput, and a live log feed.
-<p align="center"><img src="/image/dashboard-health.png" width="70%" alt="CrewAI Health dashboard" /></p>
+<p align="center"><img src="/image/health.png" width="70%" alt="CrewAI Health dashboard" /></p>
 
 ### CrewAI BMAD Crew — Agentic Efficiency
 *Is the crew working well and economically?* **Total tokens by agent** and by model, token usage over time, input-vs-output split, **avg tokens per run**, LLM and tool latency (avg + p90), tool calls by tool and by agent, tool error rate, finish reasons, per-agent efficiency (LLM vs tool calls), and a trace-correlated GenAI event feed.
-<p align="center"><img src="/image/dashboard-efficiency.png" width="70%" alt="CrewAI Agentic Efficiency dashboard" /></p>
+<p align="center"><img src="/image/agent%20efficiency.png" width="70%" alt="CrewAI Agentic Efficiency dashboard" /></p>
+
+### CrewAI + CopilotKit — Combined view
+End-to-end view combining UI interaction telemetry (CopilotKit sidebar, Ollama chat) with backend crew telemetry — traces, token consumption, and agent pipeline timing in one place.
+<p align="center"><img src="/image/creaw%20ai%20+%20copilotkit%20.png" width="70%" alt="CrewAI + CopilotKit dashboard" /></p>
 
 All span tiles filter on `coalesce(gen_ai.provider.name, gen_ai.system) == "crewai"` — OpenLIT 1.42.x sets `gen_ai.provider.name` on the CrewAI/LLM spans (verified live), `gen_ai.system` is the fallback — so they work whether the crew runs locally or in Kubernetes. Infra / log tiles filter on the `observable-crewai` cluster / `crewai` namespace.
 
