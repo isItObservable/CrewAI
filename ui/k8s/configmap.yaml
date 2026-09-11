@@ -23,5 +23,5 @@ data:
   COPILOTKIT_ADAPTER: "ollama"
 
   # Ollama host (must be reachable from the ui pod, not the browser).
-  OLLAMA_BASE_URL: "http://10.0.0.185:11434"
+  OLLAMA_BASE_URL: "http://${OLLAMA_HOST}:11434"
   OLLAMA_MODEL: "qwen3.6-nothink"

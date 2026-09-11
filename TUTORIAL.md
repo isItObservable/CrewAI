@@ -11,12 +11,46 @@ A follow-along, host-runnable tutorial. Every step is a command you can paste. B
 
 ## 0. Prerequisites
 
+### 0.1 Set your environment variables
+
+Set these **once** in your terminal session. Every `kubectl apply`, `envsubst`, and
+`curl` command in this tutorial uses them — no hardcoded IPs or tokens anywhere.
+
+```bash
+# ── Ollama ────────────────────────────────────────────────────────────────────
+# IP or hostname of your Ollama host (no protocol, no port)
+export OLLAMA_HOST=<your-ollama-host>       # e.g. 192.168.1.100 or ollama.local
+export OLLAMA_MODEL=qwen3.6                 # model tag you have pulled on that host
+
+# ── Dynatrace ─────────────────────────────────────────────────────────────────
+export DT_TENANT_URL=https://<your-tenant>.live.dynatrace.com
+export DT_API_TOKEN=<operator-token>        # scopes: see README § Dynatrace tokens
+export DT_INGEST_TOKEN=<data-ingest-token>  # scopes: metrics.ingest + logs.ingest
+                                            #         + openTelemetryTrace.ingest
+
+# ── GitHub (optional — dev agent GitHub MCP) ──────────────────────────────────
+# Leave blank to run without GitHub integration (dev agent writes to ./output/).
+export GITHUB_PAT=<your-fine-grained-PAT>  # fine-grained PAT: Contents + PRs read/write
+export GITHUB_REPO=owner/repo-name         # target repo slug (e.g. acme/my-app)
+
+# ── OTel Collector (in-cluster) ───────────────────────────────────────────────
+# If you deploy the in-cluster Collector (Step 5), use its cluster-internal DNS.
+# Override if your Collector lives on a different host/port.
+export OTEL_COLLECTOR_ENDPOINT=http://otel-gateway-collector.observability.svc.cluster.local:4318
+```
+
+> **Tip:** Save these exports to a file (e.g. `vars.env`) and `source vars.env` at the
+> start of each session. Add `vars.env` to your `.gitignore` — never commit real tokens.
+
+### 0.2 Verify tooling and Ollama
+
 ```bash
 python3 --version           # 3.10 – 3.12
 pip install uv              # or: curl -LsSf https://astral.sh/uv/install.sh | sh
-# Confirm the model is reachable and pulled on your Ollama host:
-curl http://<your-ollama-host>:11434/api/tags | grep qwen3.6
-# (If missing:  ollama pull qwen3.6  on the Ollama host.)
+
+# Confirm Ollama is reachable and the model is pulled:
+curl http://${OLLAMA_HOST}:11434/api/tags | grep ${OLLAMA_MODEL}
+# If the model is missing, pull it on the Ollama host:  ollama pull qwen3.6
 ```
 
 ---
@@ -41,7 +75,9 @@ crewai version               # expect 1.15.1
 
 ```bash
 cp .env.example .env
-# .env already points MODEL=ollama/qwen3.6 and OLLAMA_BASE_URL=http://<your-ollama-host>:11434
+# Edit .env and set your Ollama host (you set $OLLAMA_HOST in Step 0):
+sed -i.bak "s|http://<your-ollama-host>:11434|http://${OLLAMA_HOST}:11434|" .env
+cat .env | grep OLLAMA_BASE_URL   # verify the substitution
 ```
 
 The crew builds one shared `LLM` from these env vars (`crew.py: build_llm()`), so every
@@ -270,23 +306,40 @@ manifest differences are in [`docs/cluster-setup.md`](./docs/cluster-setup.md).
 
 ## 8. Deploy to Kubernetes
 
+The ConfigMap files contain `${OLLAMA_HOST}` placeholders. Use `envsubst` to substitute
+your variables before applying — no file editing required.
+
+> **Prerequisite:** `envsubst` ships with the `gettext` package.
+> macOS: `brew install gettext`. Ubuntu/Debian: `apt-get install gettext-base`.
+
 ```bash
-# Point OLLAMA_BASE_URL / image / OTLP endpoint to your environment first
-# (k8s/configmap.yaml and k8s/deployment.yaml).
+# 1. Namespace
 kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/secret.yaml
+
+# 2. ConfigMap — substitute $OLLAMA_HOST (and any other vars) at apply time
+envsubst < k8s/configmap.yaml | kubectl apply -f -
+
+# 3. Secret — inject your GitHub PAT directly (never commit the real value)
+kubectl create secret generic bmad-crew-secrets \
+  -n bmad-crew \
+  --from-literal=GITHUB_PERSONAL_ACCESS_TOKEN="${GITHUB_PAT:-}" \
+  --from-literal=OPENAI_API_KEY="" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# 4. Storage, Deployment, Service, HPA
 kubectl apply -f k8s/pvc.yaml
 kubectl apply -f k8s/deployment.yaml
 kubectl apply -f k8s/service.yaml
 kubectl apply -f k8s/hpa.yaml
+
+# 5. Wait for rollout
 kubectl -n bmad-crew rollout status deploy/bmad-crew
 ```
 
-**Two things that bite in k8s (from the research):**
-1. **Egress to Ollama.** Pods must reach `http://<your-ollama-host>:11434`. Confirm routing from
-   the cluster. If the model is unreachable, `/kickoff`
-   will hang on the first LLM call.
+**Two things that bite in k8s:**
+1. **Egress to Ollama.** Pods must reach `http://${OLLAMA_HOST}:11434`. Confirm routing from
+   the cluster before you apply — if the model is unreachable, `/kickoff` hangs on the
+   first LLM call.
 2. **Memory persistence.** CrewAI memory (LanceDB) is on local disk and ephemeral in a
    pod — the `PVC` mounts it at `/app/.crewai`. Only relevant if you enable `memory=True`.
 
@@ -294,24 +347,17 @@ kubectl -n bmad-crew rollout status deploy/bmad-crew
 
 ## 8.5 Deploy the CopilotKit UI
 
-The browser-based demo frontend. Edit `ui/k8s/configmap.yaml` if needed
-(`OLLAMA_BASE_URL`, `COPILOTKIT_ADAPTER`), then:
+The browser-based demo frontend. `ui/k8s/configmap.yaml` also contains `${OLLAMA_HOST}` —
+use `envsubst` the same way:
 
 ```bash
-kubectl apply -f ui/k8s/configmap.yaml
+# ConfigMap (substitutes $OLLAMA_HOST for the CopilotKit Ollama adapter)
+envsubst < ui/k8s/configmap.yaml | kubectl apply -f -
+
+# Deployment and Service
 kubectl apply -f ui/k8s/deployment.yaml
 kubectl apply -f ui/k8s/service.yaml
 kubectl -n bmad-crew rollout status deploy/bmad-crew-ui
-
-# Get the URL:
-kubectl get svc bmad-crew-ui -n bmad-crew
-# EXTERNAL-IP → http://<ip>/  (LoadBalancer, cloud clusters)
-
-# Local clusters (kind/k3d/minikube):
-./scripts/deploy.sh --port-forward   # opens http://localhost:3000 automatically
-
-# Or use the deploy script for everything at once:
-./scripts/deploy.sh
 ```
 
 **Traffic flow:** Browser → `/api/crew/*` → Next.js rewrite → FastAPI pod (ClusterIP,
@@ -329,8 +375,8 @@ Get the LoadBalancer IP assigned to the UI service and open it in your browser:
 ```bash
 # Cloud cluster (GKE / EKS / AKS / MetalLB) — wait for EXTERNAL-IP to appear:
 kubectl get svc bmad-crew-ui -n bmad-crew
-# NAME            TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
-# bmad-crew-ui    LoadBalancer   10.96.x.x      10.0.0.210     80:31234/TCP   2m
+# NAME            TYPE           CLUSTER-IP     EXTERNAL-IP      PORT(S)        AGE
+# bmad-crew-ui    LoadBalancer   10.96.x.x      <EXTERNAL-IP>    80:31234/TCP   2m
 
 # Once EXTERNAL-IP is populated, grab it and open the browser:
 BMAD_UI_IP=$(kubectl get svc bmad-crew-ui -n bmad-crew \

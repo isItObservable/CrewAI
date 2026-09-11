@@ -41,7 +41,7 @@ The following tools need to be installed on your machine:
 - curl
 - Helm
 - [`uv`](https://docs.astral.sh/uv/) (Python package manager) and Python 3.10–3.12
-- Network reach to an **Ollama** host with a `qwen3.6` tag (we use `10.0.0.185:11434`)
+- Network reach to an **Ollama** host with a `qwen3.6` tag pulled (IP set via `$OLLAMA_HOST`)
 - A k8S cluster having the admission controller enabled (for the deploy + observe track)
 
 
@@ -93,7 +93,7 @@ DATA_INGEST_TOKEN=<YOUR TOKEN VALUE>
 ```
 
 ##### 3. Spin up a k8S cluster with the Admission Controller enabled
-Any conformant cluster works. The pods must be able to reach your Ollama host (`http://10.0.0.185:11434` in this tutorial) — if the model is unreachable, the crew hangs on its first LLM call.
+Any conformant cluster works. The pods must be able to reach your Ollama host (`http://$OLLAMA_HOST:11434`) — if the model is unreachable, the crew hangs on its first LLM call.
 
 
 ### Deploy the observability backend
@@ -173,9 +173,10 @@ crewai version               # expect 1.15.1
 
 ```bash
 cp .env.example .env
-# .env already sets MODEL=ollama/qwen3.6 and OLLAMA_BASE_URL=http://10.0.0.185:11434
+# .env already sets MODEL=ollama/qwen3.6 — update OLLAMA_BASE_URL to your host:
+sed -i.bak "s|http://<your-ollama-host>:11434|http://${OLLAMA_HOST}:11434|" .env
 # Confirm the model is reachable and pulled:
-curl http://10.0.0.185:11434/api/tags | grep qwen3.6
+curl http://${OLLAMA_HOST}:11434/api/tags | grep qwen3.6
 ```
 
 > **Gotcha — memory & embeddings.** If you later enable `memory=True`, CrewAI defaults the embedder to OpenAI and will demand `OPENAI_API_KEY`. Override it to a local Ollama embedder (e.g. `mxbai-embed-large`) to stay fully key-free.
@@ -281,34 +282,36 @@ Both jobs run on every push to `main` / `master`, any `v*` tag, or a manual **wo
 
 ### Step 7: Deploy to Kubernetes
 
-**Goal:** Run the crew as a Deployment with a kickoff API. Point `OLLAMA_BASE_URL` / image / OTLP endpoint at your environment first (`k8s/configmap.yaml`, `k8s/deployment.yaml`).
+**Goal:** Run the crew as a Deployment with a kickoff API.
 
 **Where it runs:** Your cluster (namespace `bmad-crew`).
 
+Set your variables first (see [TUTORIAL.md §0](./TUTORIAL.md)) — ConfigMap files contain
+`${OLLAMA_HOST}` placeholders substituted by `envsubst` at apply time.
+
 ```bash
+# Backend
 kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/configmap.yaml     # MODEL, OLLAMA_BASE_URL, OTEL_EXPORTER_OTLP_ENDPOINT
-kubectl apply -f k8s/secret.yaml
+envsubst < k8s/configmap.yaml | kubectl apply -f -   # fills in $OLLAMA_HOST
+kubectl create secret generic bmad-crew-secrets -n bmad-crew \
+  --from-literal=GITHUB_PERSONAL_ACCESS_TOKEN="${GITHUB_PAT:-}" \
+  --from-literal=OPENAI_API_KEY="" \
+  --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -f k8s/pvc.yaml
-kubectl apply -f k8s/deployment.yaml    # image ghcr.io/isitobservable/bmad-crew:1.0.0, port 8000
+kubectl apply -f k8s/deployment.yaml
 kubectl apply -f k8s/service.yaml
 kubectl apply -f k8s/hpa.yaml
 kubectl -n bmad-crew rollout status deploy/bmad-crew
-```
 
-```bash
 # Frontend (CopilotKit UI)
-kubectl apply -f ui/k8s/configmap.yaml
+envsubst < ui/k8s/configmap.yaml | kubectl apply -f -
 kubectl apply -f ui/k8s/deployment.yaml
 kubectl apply -f ui/k8s/service.yaml
-
-# Or use the deploy script (applies everything + opens browser):
-./scripts/deploy.sh                   # cloud cluster (waits for LoadBalancer IP)
-./scripts/deploy.sh --port-forward    # local cluster (kind / k3d / minikube)
+kubectl -n bmad-crew rollout status deploy/bmad-crew-ui
 ```
 
 > **Two things that bite in k8s:**
-> 1. **Egress to Ollama.** Pods must reach `http://10.0.0.185:11434`. If the model is unreachable, `/kickoff` hangs on the first LLM call.
+> 1. **Egress to Ollama.** Pods must reach `http://$OLLAMA_HOST:11434`. If the model is unreachable, `/kickoff` hangs on the first LLM call.
 > 2. **Memory persistence.** CrewAI memory (LanceDB) is on local disk and ephemeral in a pod — the `PVC` mounts it at `/app/.crewai`. Only relevant if you enable `memory=True`.
 
 
