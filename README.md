@@ -1,5 +1,17 @@
 # Is it Observable
 <p align="center"><img src="/image/logo.png" width="40%" alt="Is It Observable Logo" /></p>
+<p align="center"><img src="https://avatars.githubusercontent.com/u/153014252?s=160&v=4" width="120" alt="CrewAI Logo" /></p>
+
+[![Watch the episode](https://img.shields.io/badge/YouTube-Is%20It%20Observable-red?logo=youtube)](https://www.youtube.com/@Isitobservable)
+[![CrewAI](https://img.shields.io/badge/CrewAI-1.15.1-ff6b6b)](https://crewai.com)
+[![Ollama](https://img.shields.io/badge/Ollama-qwen3.6-black)](https://ollama.ai)
+[![CopilotKit](https://img.shields.io/badge/CopilotKit-Next.js-5b21b6)](https://copilotkit.ai)
+[![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-enabled-f5a800?logo=opentelemetry)](https://opentelemetry.io)
+[![Dynatrace](https://img.shields.io/badge/Backend-Dynatrace-1496ff)](https://www.dynatrace.com)
+
+> 📺 **Watch the episode:** https://www.youtube.com/@Isitobservable — *CrewAI in Action — Rebuild a Multi-Agent Crew, Then Actually See It Work*
+
+---
 
 ## Episode : CrewAI in Action — Rebuild a Multi-Agent Crew, Then Actually See It Work
 This repository contains the files utilized during the tutorial presented in the dedicated IsItObservable episode about [CrewAI](https://crewai.com), the lean, LangChain-independent framework for role-playing agent crews.

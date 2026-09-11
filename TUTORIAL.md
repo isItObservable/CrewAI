@@ -322,11 +322,41 @@ traffic enters through the UI's LoadBalancer service.
 
 ## 9. Run and verify
 
-```bash
-# Option A — browser demo via CopilotKit UI
-# Open http://<bmad-crew-ui-EXTERNAL-IP>
-# Type a project brief in the chat sidebar → watch agents light up → read QA report
+### 9.1 Open the CopilotKit UI
 
+Get the LoadBalancer IP assigned to the UI service and open it in your browser:
+
+```bash
+# Cloud cluster (GKE / EKS / AKS / MetalLB) — wait for EXTERNAL-IP to appear:
+kubectl get svc bmad-crew-ui -n bmad-crew
+# NAME            TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
+# bmad-crew-ui    LoadBalancer   10.96.x.x      10.0.0.210     80:31234/TCP   2m
+
+# Once EXTERNAL-IP is populated, grab it and open the browser:
+BMAD_UI_IP=$(kubectl get svc bmad-crew-ui -n bmad-crew \
+  -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "CopilotKit UI → http://${BMAD_UI_IP}"
+open "http://${BMAD_UI_IP}"        # macOS — opens your default browser
+# xdg-open "http://${BMAD_UI_IP}" # Linux alternative
+```
+
+> **IP still `<pending>`?** The cluster's LoadBalancer controller hasn't assigned an address yet.
+> On a bare-metal cluster (no cloud LB) you need MetalLB or similar. As a quick alternative,
+> use port-forward (see below).
+
+```bash
+# Local cluster (kind / k3d / minikube) — use port-forward instead of a LoadBalancer:
+kubectl port-forward svc/bmad-crew-ui -n bmad-crew 3000:80
+# Then open http://localhost:3000 in your browser.
+```
+
+Type a project brief in the chat sidebar, watch the **Agent Timeline** panel light up
+agent by agent (click any completed agent card to expand its output), and read the QA
+report in the output panel once the pipeline finishes.
+
+### 9.2 Headless / curl (Option B — no browser)
+
+```bash
 # Option B — curl (headless)
 kubectl -n bmad-crew port-forward svc/bmad-crew 8080:80 &
 curl -s localhost:8080/kickoff/async \
