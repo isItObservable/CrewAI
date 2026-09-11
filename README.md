@@ -54,7 +54,7 @@ The following tools need to be installed on your machine:
 If you don't have any Dynatrace tenant, then I suggest creating a trial using the following link: [Dynatrace Trial](https://dt-url.net/observable-trial)
 Once you have your tenant, save the Dynatrace tenant url in the variable `DT_TENANT_URL` (for example: https://oat05854.live.dynatrace.com)
 ```shell
-DT_TENANT_URL=<YOUR TENANT Host>
+export DT_TENANT_URL=<YOUR TENANT Host>
 ```
 
 ##### 2. Create the Dynatrace API Tokens
@@ -76,7 +76,7 @@ Create a Dynatrace token for the operator with the following scope:
 
 Save the value of the token. We will use it later to store it in a k8S secret.
 ```shell
-API_TOKEN=<YOUR TOKEN VALUE>
+export DT_API_TOKEN=<YOUR TOKEN VALUE>
 ```
 
 ###### Ingest data token
@@ -89,7 +89,7 @@ Create a Dynatrace token with the following scope — this is the token the Open
 
 Save the value of the token. We will use it later to store it in a k8S secret.
 ```shell
-DATA_INGEST_TOKEN=<YOUR TOKEN VALUE>
+export DT_INGEST_TOKEN=<YOUR TOKEN VALUE>
 ```
 
 ##### 3. Spin up a k8S cluster with the Admission Controller enabled
@@ -97,21 +97,53 @@ Any conformant cluster works. The pods must be able to reach your Ollama host (`
 
 
 ### Deploy the observability backend
-First, deploy the Dynatrace Operator + DynaKube so the cluster's own health (CPU, memory, network) is reported, then create the ingest secret the Collector reads:
+
+**Step 1 — Install the Dynatrace Operator**
+
+The Helm chart only installs the operator itself. API URL and tokens are **not** Helm values — they go into a Kubernetes secret and a DynaKube CR in the next steps.
 
 ```shell
-# Dynatrace Operator + DynaKube (cluster health)
 helm install dynatrace-operator oci://public.ecr.aws/dynatrace/dynatrace-operator \
-  --create-namespace --namespace dynatrace --atomic \
-  --set "apiUrl=${DT_TENANT_URL}/api" \
-  --set "tokens.apiToken=${API_TOKEN}" \
-  --set "tokens.dataIngestToken=${DATA_INGEST_TOKEN}"
+  --create-namespace \
+  --namespace dynatrace \
+  --atomic
+```
 
-# Secret the OpenTelemetry Collector uses to push to Dynatrace (/api/v2/otlp)
+> Helm 4+: replace `--atomic` with `--rollback-on-failure`.
+
+**Step 2 — Create the operator secret**
+
+The secret must be named `dynakube` (matches the DynaKube CR name below) and live in the `dynatrace` namespace:
+
+```shell
+kubectl -n dynatrace create secret generic dynakube \
+  --from-literal="apiToken=${DT_API_TOKEN}" \
+  --from-literal="dataIngestToken=${DT_INGEST_TOKEN}"
+```
+
+**Step 3 — Apply the DynaKube custom resource**
+
+`k8s/dynakube.yaml` uses `${DT_TENANT_URL}` — substitute it with `envsubst`:
+
+```shell
+envsubst < k8s/dynakube.yaml | kubectl apply -f -
+
+# Verify the DynaKube and its pods come up:
+kubectl get dynakube -n dynatrace
+kubectl get pods -n dynatrace
+```
+
+This deploys application-monitoring mode (webhook injection, no privileged DaemonSet) plus an ActiveGate for Kubernetes monitoring and routing.
+
+**Step 4 — Create the OTel Collector ingest secret**
+
+The Collector reads this secret to authenticate against the Dynatrace OTLP endpoint:
+
+```shell
 kubectl create ns crewai
 kubectl -n crewai create secret generic dynatrace \
   --from-literal=dynatrace_oltp_url="${DT_TENANT_URL}" \
-  --from-literal=dt_api_token="${DATA_INGEST_TOKEN}"
+  --from-literal=dt_api_token="${DT_INGEST_TOKEN}"
 ```
 
 This deploys / prepares:

@@ -1,0 +1,34 @@
+apiVersion: dynatrace.com/v1beta5
+kind: DynaKube
+metadata:
+  name: dynakube
+  namespace: dynatrace
+  annotations:
+    # Required when the Operator runs on a read-only root filesystem (e.g. kind, k3s).
+    feature.dynatrace.com/injection-readonly-volume: "true"
+spec:
+  # Set via envsubst: export DT_TENANT_URL=https://<your-tenant>.live.dynatrace.com
+  apiUrl: ${DT_TENANT_URL}/api
+
+  # Enriches every pod's spans/logs/metrics with k8s metadata (namespace, pod name, etc.)
+  metadataEnrichment:
+    enabled: true
+
+  # Application-only monitoring: injects the OneAgent via the admission webhook.
+  # No kernel module, no privileged DaemonSet — compatible with GKE Autopilot / restricted PSPs.
+  oneAgent:
+    applicationMonitoring: {}
+
+  # ActiveGate provides the Kubernetes monitoring integration (cluster metrics, events)
+  # and acts as the routing gateway for OneAgent traffic.
+  activeGate:
+    capabilities:
+      - routing
+      - kubernetes-monitoring
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1.5Gi
