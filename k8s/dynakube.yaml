@@ -1,34 +1,39 @@
-apiVersion: dynatrace.com/v1beta5
+apiVersion: dynatrace.com/v1beta6
 kind: DynaKube
 metadata:
-  name: dynakube
+  name: observable-crewai
   namespace: dynatrace
   annotations:
-    # Required when the Operator runs on a read-only root filesystem (e.g. kind, k3s).
-    feature.dynatrace.com/injection-readonly-volume: "true"
+    feature.dynatrace.com/automatic-kubernetes-api-monitoring: "true"
+    feature.dynatrace.com/automatic-kubernetes-api-monitoring-cluster-name: observable-crewai
+    feature.dynatrace.com/k8s-app-enabled: "true"
+    feature.dynatrace.com/label-version-detection: "true"
 spec:
   # Set via envsubst: export DT_TENANT_URL=https://<your-tenant>.live.dynatrace.com
   apiUrl: ${DT_TENANT_URL}/api
-
-  # Enriches every pod's spans/logs/metrics with k8s metadata (namespace, pod name, etc.)
+  skipCertCheck: true
+  # Reference to the secret holding the operator apiToken + dataIngestToken.
+  # Must match the secret created in the deploy step below.
+  tokens: observable-crewai
   metadataEnrichment:
     enabled: true
-
-  # Application-only monitoring: injects the OneAgent via the admission webhook.
-  # No kernel module, no privileged DaemonSet — compatible with GKE Autopilot / restricted PSPs.
-  oneAgent:
-    applicationMonitoring: {}
-
-  # ActiveGate provides the Kubernetes monitoring integration (cluster metrics, events)
-  # and acts as the routing gateway for OneAgent traffic.
+  # ActiveGate ONLY — no OneAgent. Cluster/K8s metrics egress to Dynatrace happens
+  # here; ALL application telemetry (traces/metrics/logs) funnels through the OTel
+  # gateway collector instead (observability/collector/k8s/otel-collector.yaml).
+  # This keeps a single, auditable Dynatrace egress path.
   activeGate:
+    # Pin the public ECR ActiveGate image to avoid ImagePullBackOff on tenants
+    # where the default tenant-registry tag (…/linux/activegate:<v>-raw) is absent.
+    image: public.ecr.aws/dynatrace/dynatrace-activegate:1.337.30.20260507-144959
     capabilities:
-      - routing
       - kubernetes-monitoring
+      - routing
+      - dynatrace-api
+      - metrics-ingest
     resources:
       requests:
         cpu: 500m
         memory: 512Mi
       limits:
-        cpu: 1000m
-        memory: 1.5Gi
+        cpu: "1"
+        memory: 1536Mi

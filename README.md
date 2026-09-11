@@ -113,10 +113,10 @@ helm install dynatrace-operator oci://public.ecr.aws/dynatrace/dynatrace-operato
 
 **Step 2 — Create the operator secret**
 
-The secret must be named `dynakube` (matches the DynaKube CR name below) and live in the `dynatrace` namespace:
+The secret must be named `observable-crewai` (matches `tokens:` in the DynaKube CR) and live in the `dynatrace` namespace:
 
 ```shell
-kubectl -n dynatrace create secret generic dynakube \
+kubectl -n dynatrace create secret generic observable-crewai \
   --from-literal="apiToken=${DT_API_TOKEN}" \
   --from-literal="dataIngestToken=${DT_INGEST_TOKEN}"
 ```
