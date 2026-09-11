@@ -157,13 +157,30 @@ This deploys / prepares:
 
 The crew emits OpenTelemetry directly; the Collector holds the Dynatrace Api-Token so the application never does. CrewAI is **trace-rich but token-blind by default** — OpenLIT is what turns the crew's internal LLM calls into standards-compliant `gen_ai.*` spans and metrics.
 
-```
-Browser → CopilotKit UI (bmad-crew-ui pod :80)
-            /api/copilotkit  — Ollama powers the chat
-            /api/crew/*      → FastAPI (bmad-crew pod :8000)
-                               → CrewAI BMAD crew (8 agents)
-                               → Ollama qwen3.6
-                               → OTel Collector → Dynatrace
+```mermaid
+flowchart TD
+    Browser(["🌐 Browser"])
+
+    subgraph ui["bmad-crew-ui pod · :80"]
+        CK["CopilotKit UI\nNext.js"]
+    end
+
+    subgraph backend["bmad-crew pod · :8000"]
+        API["FastAPI\nserver.py"]
+        Crew["CrewAI BMAD Crew\n8 agents · sequential"]
+        API --> Crew
+    end
+
+    Ollama(["🦙 Ollama\nqwen3.6"])
+    Collector["OTel Collector"]
+    DT(["Dynatrace"])
+
+    Browser -->|"HTTP :80"| CK
+    CK -->|"/api/copilotkit\nchat & sidebar"| Ollama
+    CK -->|"/api/crew/*\nkickoff + SSE stream"| API
+    Crew -->|"LLM calls"| Ollama
+    Crew -->|"gen_ai.* spans\n+ metrics + logs"| Collector
+    Collector -->|"OTLP/HTTP"| DT
 ```
 
 The telemetry shape you get:
