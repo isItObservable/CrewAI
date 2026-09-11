@@ -138,8 +138,16 @@ def build_github_instruction(github_repo: str) -> str:
         )
     return (
         f"Target GitHub repository: **{github_repo}**. "
+        "IMPORTANT TOOL USAGE RULES:\n"
+        "- The story to implement is already in your context from the Scrum Master. "
+        "Do NOT call `list_issues`, `search_issues`, or `list_pull_requests` — "
+        "read the story directly from your context.\n"
+        "- When calling `get_file_contents`, only pass `owner`, `repo`, and `path`. "
+        "Never pass the optional `fields` parameter.\n"
+        "- When calling `create_branch`, if you get 'Reference already exists' the "
+        "branch is already created — skip and proceed to `create_or_update_file`.\n\n"
         "Use your GitHub tools to:\n"
-        "1. Create a feature branch named `feature/bmad-crew-impl`.\n"
+        "1. Create a feature branch named `feature/bmad-crew-impl` (skip if it already exists).\n"
         "2. Commit each source file to that branch using `create_or_update_file` "
         "(one commit per file, include a descriptive message).\n"
         "3. Open a pull request titled 'BMAD crew: implement highest-priority story' "
@@ -172,7 +180,7 @@ def _build_planning_config():
         return PlanningConfig(
             reasoning_effort="medium",   # replan on tool failure, not on every step
             max_steps=20,
-            max_replans=3,
+            max_replans=1,
         )
     except ImportError:
         print("[bmad-crew] PlanningConfig not found in this CrewAI version — dev agent runs without planning mode")

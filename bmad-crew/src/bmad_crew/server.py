@@ -140,7 +140,11 @@ def _crew_thread(run_id: str, req: KickoffRequest) -> None:
         @crewai_event_bus.on(AgentExecutionCompletedEvent)
         def on_agent_done(source, event):
             role = getattr(event.agent, "role", str(event.agent))
-            q.put({"type": "agent_done", "agent": str(role)})
+            output = ""
+            if hasattr(event, "output") and event.output:
+                raw = getattr(event.output, "raw", None) or str(event.output)
+                output = raw[:2000]  # cap at 2 kB — enough for the UI, not overwhelming
+            q.put({"type": "agent_done", "agent": str(role), "output": output})
 
     except Exception as exc:  # pragma: no cover — degrade if event bus API changed
         print(f"[bmad-crew] SSE event subscription failed ({exc}); events will be minimal")

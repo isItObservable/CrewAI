@@ -53,7 +53,19 @@ spec:
           volumeMounts:
             - name: memory
               mountPath: /app/.crewai
+            # agents.yaml and tasks.yaml are served from the ConfigMap so you can
+            # retune any agent's role/goal/backstory without rebuilding the image —
+            # just edit the ConfigMap and run `kubectl rollout restart`.
+            - name: crew-config
+              mountPath: /app/src/bmad_crew/config/agents.yaml
+              subPath: agents.yaml
+            - name: crew-config
+              mountPath: /app/src/bmad_crew/config/tasks.yaml
+              subPath: tasks.yaml
       volumes:
         - name: memory
           persistentVolumeClaim:
             claimName: bmad-crew-memory
+        - name: crew-config
+          configMap:
+            name: bmad-crew-config

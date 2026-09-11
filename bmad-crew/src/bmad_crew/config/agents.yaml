@@ -1,4 +1,4 @@
-# BMAD crew — agent definitions (CrewAI v1.15.1, improved edition)
+  # BMAD crew — agent definitions (CrewAI v1.15.1, improved edition)
 #
 # Design principles applied (crewaiinc/skills / design-agent):
 #   * Role: specific domain expertise — not "Assistant" but "Senior Data Analyst"

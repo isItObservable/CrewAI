@@ -32,6 +32,7 @@ interface AgentState {
   status: AgentStatus;
   startedAt?: number;
   durationMs?: number;
+  output?: string;
 }
 
 interface AgentTimelineProps {
@@ -70,6 +71,7 @@ export default function AgentTimeline({
   );
   const [crewStarted, setCrewStarted] = useState(false);
   const [crewDone, setCrewDone] = useState(false);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
   // Map a raw agent role string (may be verbose like "Senior Engineer (Amelia)")
@@ -99,13 +101,14 @@ export default function AgentTimeline({
     setAgents(Object.fromEntries(AGENTS.map((a) => [a.key, { status: "idle" }])));
     setCrewStarted(false);
     setCrewDone(false);
+    setExpandedKey(null);
 
     const url = `${crewUrl}/stream/${runId}`;
     const es = new EventSource(url);
     esRef.current = es;
 
     es.onmessage = (evt) => {
-      let event: { type: string; agent?: string; result?: string; message?: string };
+      let event: { type: string; agent?: string; output?: string; result?: string; message?: string };
       try {
         event = JSON.parse(evt.data);
       } catch {
@@ -131,6 +134,7 @@ export default function AgentTimeline({
         case "agent_done": {
           const key = resolveAgentKey(event.agent || "");
           if (key) {
+            const agentOutput = event.output || "";
             setAgents((prev) => {
               const started = prev[key]?.startedAt;
               return {
@@ -139,6 +143,7 @@ export default function AgentTimeline({
                   status: "done",
                   startedAt: started,
                   durationMs: started ? Date.now() - started : undefined,
+                  output: agentOutput,
                 },
               };
             });
@@ -213,62 +218,86 @@ export default function AgentTimeline({
       {AGENTS.map((agent, idx) => {
         const state = agents[agent.key];
         const isActive = state.status === "active";
+        const hasOutput = state.status === "done" && !!state.output;
+        const isExpanded = expandedKey === agent.key;
+
         return (
-          <div
-            key={agent.key}
-            className={`
-              flex items-center gap-3 rounded-lg px-3 py-2.5 border transition-all duration-300
-              ${isActive
-                ? "border-indigo-500/60 bg-indigo-950/40 agent-active"
-                : state.status === "done"
-                ? "border-emerald-800/50 bg-emerald-950/20"
-                : state.status === "error"
-                ? "border-red-800/50 bg-red-950/20"
-                : "border-slate-700/50 bg-slate-800/30"
-              }
-            `}
-          >
-            {/* Step number */}
-            <span className="text-xs text-slate-500 w-4 shrink-0">{idx + 1}</span>
-
-            {/* Status dot */}
-            <span
+          <div key={agent.key} className="flex flex-col">
+            {/* Card row */}
+            <div
               className={`
-                w-2.5 h-2.5 rounded-full shrink-0 transition-colors duration-300
-                ${statusColor(state.status)}
-                ${isActive ? "animate-pulse" : ""}
+                flex items-center gap-3 rounded-lg px-3 py-2.5 border transition-all duration-300
+                ${hasOutput ? "cursor-pointer" : ""}
+                ${isActive
+                  ? "border-indigo-500/60 bg-indigo-950/40 agent-active"
+                  : state.status === "done"
+                  ? "border-emerald-800/50 bg-emerald-950/20"
+                  : state.status === "error"
+                  ? "border-red-800/50 bg-red-950/20"
+                  : "border-slate-700/50 bg-slate-800/30"
+                }
               `}
-            />
+              onClick={() => hasOutput && setExpandedKey(isExpanded ? null : agent.key)}
+            >
+              {/* Step number */}
+              <span className="text-xs text-slate-500 w-4 shrink-0">{idx + 1}</span>
 
-            {/* Emoji */}
-            <span className="text-base shrink-0">{agent.emoji}</span>
-
-            {/* Name + role */}
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-medium text-slate-200 leading-tight">
-                {agent.name}
-              </span>
-              <span className="text-xs text-slate-500 leading-tight">{agent.role}</span>
-            </div>
-
-            {/* Status label + duration */}
-            <div className="ml-auto flex flex-col items-end shrink-0">
+              {/* Status dot */}
               <span
-                className={`text-xs font-medium ${
-                  isActive ? "text-indigo-400"
-                  : state.status === "done" ? "text-emerald-400"
-                  : state.status === "error" ? "text-red-400"
-                  : "text-slate-600"
-                }`}
-              >
-                {statusLabel(state.status)}
-              </span>
-              {state.durationMs !== undefined && (
-                <span className="text-xs text-slate-600">
-                  {(state.durationMs / 1000).toFixed(1)}s
+                className={`
+                  w-2.5 h-2.5 rounded-full shrink-0 transition-colors duration-300
+                  ${statusColor(state.status)}
+                  ${isActive ? "animate-pulse" : ""}
+                `}
+              />
+
+              {/* Emoji */}
+              <span className="text-base shrink-0">{agent.emoji}</span>
+
+              {/* Name + role */}
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-medium text-slate-200 leading-tight">
+                  {agent.name}
                 </span>
-              )}
+                <span className="text-xs text-slate-500 leading-tight">{agent.role}</span>
+              </div>
+
+              {/* Status label + duration + expand chevron */}
+              <div className="ml-auto flex flex-col items-end shrink-0">
+                <span
+                  className={`text-xs font-medium ${
+                    isActive ? "text-indigo-400"
+                    : state.status === "done" ? "text-emerald-400"
+                    : state.status === "error" ? "text-red-400"
+                    : "text-slate-600"
+                  }`}
+                >
+                  {statusLabel(state.status)}
+                </span>
+                {state.durationMs !== undefined && (
+                  <span className="text-xs text-slate-600">
+                    {(state.durationMs / 1000).toFixed(1)}s
+                  </span>
+                )}
+                {hasOutput && (
+                  <span className="text-xs text-slate-500 mt-0.5">
+                    {isExpanded ? "▲" : "▼"}
+                  </span>
+                )}
+              </div>
             </div>
+
+            {/* Expandable output */}
+            {isExpanded && state.output && (
+              <div className="mt-1 ml-7 rounded-md border border-slate-700/50 bg-slate-900/60 px-3 py-2.5">
+                <p className="text-xs text-slate-400 font-semibold mb-1 uppercase tracking-wider">
+                  {agent.name}&apos;s output
+                </p>
+                <pre className="text-xs text-slate-300 whitespace-pre-wrap break-words leading-relaxed max-h-60 overflow-y-auto">
+                  {state.output}
+                </pre>
+              </div>
+            )}
           </div>
         );
       })}
