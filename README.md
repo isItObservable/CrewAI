@@ -1,6 +1,6 @@
 # Is it Observable
 <p align="center"><img src="/image/logo.png" width="40%" alt="Is It Observable Logo" /></p>
-<p align="center"><img src="https://avatars.githubusercontent.com/u/153014252?s=160&v=4" width="120" alt="CrewAI Logo" /></p>
+<p align="center"><img src="/image/crewai-brand-color.png" width="200" alt="CrewAI Logo" /></p>
 
 [![Watch the episode](https://img.shields.io/badge/YouTube-Is%20It%20Observable-red?logo=youtube)](https://www.youtube.com/@Isitobservable)
 [![CrewAI](https://img.shields.io/badge/CrewAI-1.15.1-ff6b6b)](https://crewai.com)
