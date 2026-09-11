@@ -13,7 +13,7 @@
 
 ---
 
-## Episode : CrewAI in Action — Rebuild a Multi-Agent Crew, Then Actually See It Work
+## Episode : CrewAI in Action, Build a Multi-Agent Crew
 This repository contains the files utilized during the tutorial presented in the dedicated IsItObservable episode about [CrewAI](https://crewai.com), the lean, LangChain-independent framework for role-playing agent crews.
 
 This tutorial rebuilds our **BMAD software-delivery crew** — eight personas that hand a project from idea to shipped code (analyst → PM → UX → PO → architect → SM → dev → QA) — in CrewAI, runs it against a **local qwen model via Ollama** (no external API key), packages it for **Kubernetes**, and wires it to **OpenTelemetry → Dynatrace** so you can *see* the agents reason, hand off, and burn tokens.
