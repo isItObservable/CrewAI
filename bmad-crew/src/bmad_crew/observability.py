@@ -70,13 +70,40 @@ def init_observability() -> bool:
 # ---------------------------------------------------------------------------
 
 def _init_openlit(endpoint: str) -> bool:
-    """OpenLIT auto-instrumentation (gen_ai.* spans + GenAI metrics)."""
+    """OpenLIT auto-instrumentation (gen_ai.* spans + GenAI metrics).
+
+    We explicitly set the global TracerProvider BEFORE calling openlit.init()
+    so that CrewAI's Telemetry.set_tracer() finds a real (non-Proxy) provider
+    and backs off — routing CrewAI's native spans through our collector instead
+    of hardcoding them to telemetry.crewai.com.
+    """
     try:
         import openlit
     except ImportError:
         print("[bmad-crew] openlit not installed — run: pip install openlit")
         return False
 
+    # ---- 1. Set global TracerProvider so CrewAI backs off ---------------------
+    try:
+        from opentelemetry import trace
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+        resource = Resource.create({
+            "service.name": os.getenv("OTEL_SERVICE_NAME", "bmad-crew"),
+            "deployment.environment": os.getenv("OTEL_ENVIRONMENT", "observable-crewai"),
+        })
+        tp = TracerProvider(resource=resource)
+        # OTLPSpanExporter reads OTEL_EXPORTER_OTLP_ENDPOINT from env and
+        # appends /v1/traces automatically — same endpoint already in ConfigMap.
+        tp.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+        trace.set_tracer_provider(tp)
+    except ImportError:
+        pass  # opentelemetry-sdk missing; openlit will manage its own setup
+
+    # ---- 2. Layer OpenLIT LLM instrumentation on top -------------------------
     openlit.init(
         application_name=os.getenv("OTEL_SERVICE_NAME", "bmad-crew"),
         # deployment.environment resource attr — dashboards filter on this.
