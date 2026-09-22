@@ -204,14 +204,14 @@ already reference the correct tag — **you do not need to build or push anythin
 
 | Image | Registry |
 |-------|----------|
-| Backend (FastAPI crew server) | `ghcr.io/isitobservable/bmad-crew:sha-5535823` |
-| Frontend (CopilotKit UI) | `ghcr.io/isitobservable/bmad-crew-ui:sha-5535823` |
+| Backend (FastAPI crew server) | `ghcr.io/isitobservable/bmad-crew:sha-ba7cb21` |
+| Frontend (CopilotKit UI) | `ghcr.io/isitobservable/bmad-crew-ui:sha-ba7cb21` |
 
 You can verify the images are accessible before deploying:
 
 ```bash
-docker pull ghcr.io/isitobservable/bmad-crew:sha-5535823
-docker pull ghcr.io/isitobservable/bmad-crew-ui:sha-5535823
+docker pull ghcr.io/isitobservable/bmad-crew:sha-ba7cb21
+docker pull ghcr.io/isitobservable/bmad-crew-ui:sha-ba7cb21
 ```
 
 > **Forking and modifying the code?** Push your changes to `main` on your fork.
@@ -227,52 +227,24 @@ docker pull ghcr.io/isitobservable/bmad-crew-ui:sha-5535823
 
 ## 7. Provision a Kubernetes cluster
 
-Steps 8–9 need a cluster you can `kubectl apply` to. If you already have one,
-skip ahead. Otherwise pick one of these two paths — both are documented in full,
-with every environment-specific value (node names, IPs, project id) as a
-**variable you supply**, in **[`docs/cluster-setup.md`](./docs/cluster-setup.md)**.
+Steps 8–9 need a cluster you can `kubectl apply` to. **If you already have one
+and `kubectl get nodes` returns healthy nodes, skip ahead.**
 
-### Option A — Cluster API on Proxmox (what we use)
-
-We provision our tutorial clusters declaratively with [Cluster
-API](https://cluster-api.sigs.k8s.io/) on a Proxmox homelab. Nothing about our
-network is baked in: you describe **your** Proxmox node, template, and free IP
-ranges in a `values.env` file, render the manifests, and apply them.
+If you need a cluster, the simplest option is a local one with
+[kind](https://kind.sigs.k8s.io/) (Kubernetes-in-Docker — no cloud account or
+homelab required). Full steps including MetalLB for `LoadBalancer` IPs are in
+**[`docs/cluster-setup.md`](./docs/cluster-setup.md)**.
 
 ```bash
-# See docs/cluster-setup.md for the full walkthrough. In short:
-#   1. copy the example config and set YOUR values (no defaults leak through):
-#        cp -r clusters/example-cluster clusters/my-cluster
-#        $EDITOR clusters/my-cluster/values.env   # source_node, template_id, vip, IP pools
-#   2. render + apply against your CAPI management cluster:
-#        render.sh my-cluster && kubectl apply -k clusters/my-cluster/
-```
-
-> The reusable CAPI manifests + render tooling live in the companion
-> [proxmox-clusters](https://github.com/henrikrexed/proxmox-clusters) repo.
-> `docs/cluster-setup.md` explains exactly which variables to set and how to
-> discover free IPs on your LAN.
-
-### Option B — Google Kubernetes Engine (managed, no homelab needed)
-
-Don't have Proxmox? Stand up a managed cluster in one command:
-
-```bash
-gcloud container clusters create-auto bmad-crew \
-  --project <your-gcp-project> --region <your-region>
-gcloud container clusters get-credentials bmad-crew --region <your-region>
+# Quick-start (see docs/cluster-setup.md for MetalLB setup):
+kind create cluster --name bmad-crew
 kubectl get nodes
 ```
 
-On GKE, a `Service` of `type: LoadBalancer` gets a cloud IP automatically — so
-you can skip any MetalLB add-on. Full `gcloud`/Terraform steps and the (few)
-manifest differences are in [`docs/cluster-setup.md`](./docs/cluster-setup.md).
-
-> **Ollama reachability (both paths).** The crew calls your Ollama host over the
-> network. Make sure pods in the cluster can reach `OLLAMA_BASE_URL`
-> (`k8s/configmap.yaml`) — a homelab cluster reaches a LAN Ollama directly; from
-> GKE you'll need the Ollama host reachable from the cluster (VPN, public
-> endpoint, or run Ollama in-cluster).
+> **Ollama reachability.** Pods must reach your Ollama host over the network.
+> If Ollama runs on the same machine as Docker, use `host.docker.internal`
+> (macOS/Windows) or `172.17.0.1` (Linux) instead of `localhost` for
+> `OLLAMA_HOST`.
 
 ---
 
@@ -317,18 +289,42 @@ kubectl -n dynatrace wait pod -l app.kubernetes.io/name=dynatrace-activegate \
 The ActiveGate handles **cluster-level telemetry** (K8s metrics, workload inventory).
 All application traces and logs flow through the OTel Collector in the next step.
 
-### 8.2 Deploy the OpenTelemetry Collector
+### 8.2 Deploy the OpenTelemetry Collector (OTel Operator)
+
+The Collector is managed by the [OpenTelemetry Operator](https://opentelemetry.io/docs/kubernetes/operator/).
+Install the operator once, then apply the gateway CRD — the operator handles the
+Deployment, Service, and RBAC.
 
 ```bash
-# Apply the OTel Collector (substitutes $DT_TENANT_URL and $DT_INGEST_TOKEN)
-envsubst < observability/collector/k8s/otel-collector.yaml | kubectl apply -f -
+# 1. cert-manager (operator dependency)
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.0/cert-manager.yaml
+kubectl -n cert-manager rollout status deploy/cert-manager --timeout=120s
 
-# Wait for the collector deployment to be ready
-kubectl -n observability rollout status deploy/otel-collector
+# 2. OTel Operator
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+helm install opentelemetry-operator open-telemetry/opentelemetry-operator \
+  -n opentelemetry-operator-system --create-namespace \
+  --set manager.collectorImage.repository=otel/opentelemetry-collector-k8s
+kubectl -n opentelemetry-operator-system rollout status deploy/opentelemetry-operator --timeout=120s
+
+# 3. Dynatrace OTLP auth secret
+kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic dynatrace-otlp \
+  -n observability \
+  --from-literal=endpoint="${DT_TENANT_URL}" \
+  --from-literal=token="Api-Token ${DT_INGEST_TOKEN}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# 4. Deploy the gateway collector CRD
+kubectl apply -f observability/collector/k8s/otel-gateway.yaml
+kubectl -n observability rollout status deploy/otel-gateway-collector --timeout=120s
 ```
 
-The Collector receives OTLP from the crew pods and exports traces, metrics, and logs
-to Dynatrace via OTLP/HTTP.
+The operator creates a `Service` named `otel-gateway-collector` in the `observability`
+namespace — this is the endpoint the crew pods send telemetry to. The Collector
+enriches spans with Kubernetes metadata, normalises `gen_ai.*` attributes across all
+three instrumentation paths, and forwards everything to Dynatrace.
 
 ### 8.3 Deploy the BMAD crew backend
 
@@ -466,7 +462,7 @@ Import the pre-built dashboards from `observability/dashboards/` in the repo:
 - **CrewAI + CopilotKit** — end-to-end view combining UI and backend telemetry
 
 If spans are missing: check that `OTEL_EXPORTER_OTLP_ENDPOINT` in the ConfigMap
-points at the Collector (`http://otel-collector.observability.svc.cluster.local:4318`),
+points at the Collector (`http://otel-gateway-collector.observability.svc.cluster.local:4318`),
 that the Collector pod is running, and that the Dynatrace export token has
 `metrics.ingest` + `traces.ingest` scopes. Walk the full pipeline in
 `observability/README.md`.
