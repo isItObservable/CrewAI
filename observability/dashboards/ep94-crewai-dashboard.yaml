@@ -15,7 +15,7 @@ content:
       type: data
       title: LLM Calls
       query: fetch spans | filter contains(service.name, "bmad") | filter span.name
-        == "openai.chat" | summarize llm_calls=count()
+        == "chat qwen3.6" | summarize llm_calls=count()
       visualization: singleValue
       visualizationSettings:
         singleValue:
@@ -26,7 +26,7 @@ content:
       type: data
       title: Input Tokens
       query: fetch spans | filter contains(service.name, "bmad") | filter span.name
-        == "openai.chat" | summarize total_input=sum(toLong(gen_ai.usage.input_tokens))
+        == "chat qwen3.6" | summarize total_input=sum(toLong(gen_ai.usage.input_tokens))
       visualization: singleValue
       visualizationSettings:
         singleValue:
@@ -37,7 +37,7 @@ content:
       type: data
       title: Output Tokens
       query: fetch spans | filter contains(service.name, "bmad") | filter span.name
-        == "openai.chat" | summarize total_output=sum(toLong(gen_ai.usage.output_tokens))
+        == "chat qwen3.6" | summarize total_output=sum(toLong(gen_ai.usage.output_tokens))
       visualization: singleValue
       visualizationSettings:
         singleValue:
@@ -59,7 +59,7 @@ content:
       type: data
       title: Token Consumption over Time
       query: fetch spans | filter contains(service.name, "bmad") | filter span.name
-        == "openai.chat" | makeTimeseries input_tokens=sum(toLong(gen_ai.usage.input_tokens)),
+        == "chat qwen3.6" | makeTimeseries input_tokens=sum(toLong(gen_ai.usage.input_tokens)),
         output_tokens=sum(toLong(gen_ai.usage.output_tokens)), interval:5m
       visualization: areaChart
       visualizationSettings:
@@ -71,7 +71,7 @@ content:
       type: data
       title: Agent Execution Time (seconds)
       query: fetch spans | filter contains(service.name, "bmad") | filter startsWith(span.name,
-        "invoke_agent ") | filter contains(span.name, "(") | summarize avgDuration=avg(duration)/1000000000.0,
+        "invoke_agent ") | summarize avgDuration=avg(duration)/1000000000.0,
         calls=count(), by:{span.name} | sort avgDuration desc | limit 20
       visualization: table
       visualizationSettings: {}
@@ -80,7 +80,7 @@ content:
       type: data
       title: GitHub MCP Tool Calls
       query: fetch spans | filter contains(service.name, "bmad") | filter startsWith(span.name,
-        "execute_tool ") | fieldsAdd tool=substringAfter(span.name, "execute_tool ")
+        "execute_tool ") | fieldsAdd tool=replaceString(span.name, "execute_tool ", "")
         | summarize calls=count(), by:{tool} | sort calls desc | limit 20
       visualization: categoricalBarChart
       visualizationSettings: {}
@@ -89,7 +89,7 @@ content:
       type: data
       title: LLM Response Time
       query: fetch spans | filter contains(service.name, "bmad") | filter span.name
-        == "openai.chat" | summarize avg_ms=avg(duration)/1000000, p95_ms=percentile(duration,
+        == "chat qwen3.6" | summarize avg_ms=avg(duration)/1000000, p95_ms=percentile(duration,
         95)/1000000, calls=count()
       visualization: table
       visualizationSettings: {}

@@ -257,15 +257,15 @@ content:
         davisVisualization:
           isAvailable: true
         enabled: false
-      query: timeseries req = sum(dt.service.request.count), by:{dt.entity.service},
-        filter:{ k8s.namespace.name == "bmad-crew" }
+      query: fetch spans | filter contains(service.name, "bmad") and startsWith(span.name,
+        "invoke_agent ") | makeTimeseries req = count(), by:{span.name}
       querySettings:
         defaultSamplingRatio: 10
         defaultScanLimitGbytes: 500
         enableSampling: false
         maxResultMegaBytes: 100
         maxResultRecords: 1000
-      title: Request Throughput by Agent Service
+      title: Agent Run Throughput (spans)
       type: data
       visualization: lineChart
       visualizationSettings:
@@ -286,15 +286,16 @@ content:
         davisVisualization:
           isAvailable: true
         enabled: false
-      query: timeseries fail = sum(dt.service.request.failure_count), by:{dt.entity.service},
-        filter:{ k8s.namespace.name == "bmad-crew" }
+      query: fetch spans | filter contains(service.name, "bmad") and startsWith(span.name,
+        "invoke_agent ") | makeTimeseries fail = countIf(span.status_code == "ERROR"),
+        by:{span.name}
       querySettings:
         defaultSamplingRatio: 10
         defaultScanLimitGbytes: 500
         enableSampling: false
         maxResultMegaBytes: 100
         maxResultRecords: 1000
-      title: Failures by Agent Service
+      title: Agent Run Failures (spans)
       type: data
       visualization: lineChart
       visualizationSettings:
@@ -315,15 +316,15 @@ content:
         davisVisualization:
           isAvailable: true
         enabled: false
-      query: timeseries rt = avg(dt.service.request.response_time), by:{dt.entity.service},
-        filter:{ k8s.namespace.name == "bmad-crew" }
+      query: fetch spans | filter contains(service.name, "bmad") and startsWith(span.name,
+        "invoke_agent ") | makeTimeseries rt = avg(duration) / 1000000.0, by:{span.name}
       querySettings:
         defaultSamplingRatio: 10
         defaultScanLimitGbytes: 500
         enableSampling: false
         maxResultMegaBytes: 100
         maxResultRecords: 1000
-      title: Response Time by Agent Service
+      title: Agent Run Response Time ms (spans)
       type: data
       visualization: lineChart
       visualizationSettings:
@@ -349,7 +350,6 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
         ")
 
-        | filter contains(span.name, "(")
 
         | summarize runs = count(), failed = countIf(span.status_code == "ERROR"),
         by:{span.name}
@@ -411,7 +411,6 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
         ")
 
-        | filter contains(span.name, "(")
 
         | summarize Agents = countDistinct(span.name)'
       querySettings:
@@ -500,7 +499,6 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
         ")
 
-        | filter contains(span.name, "(")
 
         | summarize p50 = percentile(duration, 50) / 1000000000.0'
       querySettings:
@@ -531,7 +529,6 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
         ")
 
-        | filter contains(span.name, "(")
 
         | summarize p90 = percentile(duration, 90) / 1000000000.0'
       querySettings:
@@ -559,7 +556,7 @@ content:
         enabled: false
       query: 'fetch spans
 
-        | filter contains(service.name, "bmad") and span.name == "openai.chat"
+        | filter contains(service.name, "bmad") and span.name == "chat qwen3.6"
 
         | summarize p90 = percentile(duration, 90) / 1000000000.0'
       querySettings:
@@ -648,7 +645,6 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
         ")
 
-        | filter contains(span.name, "(")
 
         | summarize runs = count(), failed = countIf(span.status_code == "ERROR"),
         p50s = percentile(duration, 50) / 1000000000.0, p90s = percentile(duration,
@@ -676,7 +672,6 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
         ")
 
-        | filter contains(span.name, "(")
 
         | summarize Runs = count()'
       querySettings:
@@ -707,7 +702,6 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
         ")
 
-        | filter contains(span.name, "(")
 
         | summarize Failed = countIf(span.status_code == "ERROR")'
       querySettings:

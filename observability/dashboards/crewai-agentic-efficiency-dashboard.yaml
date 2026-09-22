@@ -182,7 +182,6 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
         ")
 
-        | filter contains(span.name, "(")
 
         | summarize runs = count(), avgDurationS = avg(duration) / 1000000000.0, by:{span.name}
 
@@ -193,7 +192,7 @@ content:
         enableSampling: false
         maxResultMegaBytes: 100
         maxResultRecords: 1000
-      title: Total Tokens by Agent
+      title: Avg Agent Execution Time (s)
       type: data
       visualization: categoricalBarChart
       visualizationSettings:
@@ -216,7 +215,7 @@ content:
         enabled: false
       query: 'fetch spans
 
-        | filter contains(service.name, "bmad") and span.name == "openai.chat"
+        | filter contains(service.name, "bmad") and span.name == "chat qwen3.6"
 
         | summarize tokens = sum(coalesce(toLong(`gen_ai.usage.input_tokens`), toLong(`gen_ai.usage.prompt_tokens`)))
         + sum(coalesce(toLong(`gen_ai.usage.output_tokens`), toLong(`gen_ai.usage.completion_tokens`))),
@@ -257,10 +256,10 @@ content:
 
         | filter contains(service.name, "bmad")
 
-        | filter span.name == "openai.chat" or startsWith(span.name, "invoke_agent
+        | filter span.name == "chat qwen3.6" or startsWith(span.name, "invoke_agent
         ") or startsWith(span.name, "execute_tool ") or startsWith(span.name, "invoke_workflow")
 
-        | fieldsAdd opType = if(span.name == "openai.chat", "chat", else: if(startsWith(span.name,
+        | fieldsAdd opType = if(span.name == "chat qwen3.6", "chat", else: if(startsWith(span.name,
         "execute_tool "), "execute_tool", else: if(startsWith(span.name, "invoke_workflow"),
         "invoke_workflow", else: "invoke_agent")))
 
@@ -294,7 +293,7 @@ content:
         enabled: false
       query: 'fetch spans
 
-        | filter contains(service.name, "bmad") and span.name == "openai.chat"
+        | filter contains(service.name, "bmad") and span.name == "chat qwen3.6"
 
         | summarize avgMs = avg(duration) / 1000000.0, p90Ms = percentile(duration,
         90) / 1000000.0, calls = count(), by:{model = coalesce(gen_ai.request.model,
@@ -333,7 +332,7 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "execute_tool
         ")
 
-        | fieldsAdd tool = substringAfter(span.name, "execute_tool ")
+        | fieldsAdd tool = replaceString(span.name, "execute_tool ", "")
 
         | summarize calls = count(), by:{tool}
 
@@ -370,7 +369,7 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "execute_tool
         ")
 
-        | fieldsAdd tool = substringAfter(span.name, "execute_tool ")
+        | fieldsAdd tool = replaceString(span.name, "execute_tool ", "")
 
         | summarize calls = count(), by:{tool}
 
@@ -410,7 +409,6 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
         ")
 
-        | filter contains(span.name, "(")
 
         | summarize runs = count(), failed = countIf(span.status_code == "ERROR"),
         avgDurationS = avg(duration) / 1000000000.0, p90DurationS = percentile(duration,
@@ -463,7 +461,7 @@ content:
         enabled: false
       query: 'fetch spans
 
-        | filter contains(service.name, "bmad") and span.name == "openai.chat"
+        | filter contains(service.name, "bmad") and span.name == "chat qwen3.6"
 
         | summarize Tokens = sum(coalesce(toLong(`gen_ai.usage.input_tokens`), toLong(`gen_ai.usage.prompt_tokens`)))'
       querySettings:
@@ -498,13 +496,12 @@ content:
         enabled: false
       query: 'fetch spans
 
-        | filter contains(service.name, "bmad") and (span.name == "openai.chat"
-        or (startsWith(span.name, "invoke_agent ") and contains(span.name, "(")))
+        | filter contains(service.name, "bmad") and (span.name == "chat qwen3.6"
+        or startsWith(span.name, "invoke_agent "))
 
         | summarize tok = sum(coalesce(toLong(`gen_ai.usage.input_tokens`), toLong(`gen_ai.usage.prompt_tokens`)))
         + sum(coalesce(toLong(`gen_ai.usage.output_tokens`), toLong(`gen_ai.usage.completion_tokens`))),
-        runs = countIf(startsWith(span.name, "invoke_agent ") and contains(span.name,
-        "("))
+        runs = countIf(startsWith(span.name, "invoke_agent "))
 
         | fieldsAdd TokensPerRun = if(runs > 0, toDouble(tok) / runs, else: 0.0)
 
@@ -570,7 +567,6 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
         ")
 
-        | filter contains(span.name, "(")
 
         | summarize p90 = percentile(duration, 90) / 1000000000.0'
       querySettings:
@@ -598,7 +594,7 @@ content:
         enabled: false
       query: 'fetch spans
 
-        | filter contains(service.name, "bmad") and span.name == "openai.chat"
+        | filter contains(service.name, "bmad") and span.name == "chat qwen3.6"
 
         | summarize p90 = percentile(duration, 90) / 1000000000.0'
       querySettings:
@@ -629,7 +625,7 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "execute_tool
         ")
 
-        | fieldsAdd tool = substringAfter(span.name, "execute_tool ")
+        | fieldsAdd tool = replaceString(span.name, "execute_tool ", "")
 
         | summarize calls = count(), avgMs = avg(duration) / 1000000.0, p90Ms = percentile(duration,
         90) / 1000000.0, errors = countIf(span.status_code == "ERROR"), by:{tool}
@@ -655,7 +651,7 @@ content:
         enabled: false
       query: 'fetch spans
 
-        | filter contains(service.name, "bmad") and span.name == "openai.chat"
+        | filter contains(service.name, "bmad") and span.name == "chat qwen3.6"
 
         | summarize count = count(), by:{reason = `gen_ai.response.finish_reasons`}
 
@@ -692,7 +688,7 @@ content:
         | filter contains(service.name, "bmad") and startsWith(span.name, "execute_tool
         ")
 
-        | fieldsAdd tool = substringAfter(span.name, "execute_tool ")
+        | fieldsAdd tool = replaceString(span.name, "execute_tool ", "")
 
         | summarize calls = count(), by:{tool}
 
@@ -765,7 +761,7 @@ content:
         enabled: false
       query: 'fetch spans
 
-        | filter contains(service.name, "bmad") and span.name == "openai.chat"
+        | filter contains(service.name, "bmad") and span.name == "chat qwen3.6"
 
         | summarize Tokens = sum(coalesce(toLong(`gen_ai.usage.output_tokens`), toLong(`gen_ai.usage.completion_tokens`)))'
       querySettings:
@@ -800,7 +796,7 @@ content:
         enabled: false
       query: 'fetch spans
 
-        | filter contains(service.name, "bmad") and span.name == "openai.chat"
+        | filter contains(service.name, "bmad") and span.name == "chat qwen3.6"
 
         | summarize Calls = count()'
       querySettings:
@@ -888,7 +884,7 @@ content:
         enabled: false
       query: 'fetch spans
 
-        | filter contains(service.name, "bmad") and span.name == "openai.chat"
+        | filter contains(service.name, "bmad") and span.name == "chat qwen3.6"
 
         | makeTimeseries input = sum(coalesce(toLong(`gen_ai.usage.input_tokens`),
         toLong(`gen_ai.usage.prompt_tokens`))), output = sum(coalesce(toLong(`gen_ai.usage.output_tokens`),
@@ -922,7 +918,7 @@ content:
         enabled: false
       query: 'fetch spans
 
-        | filter contains(service.name, "bmad") and span.name == "openai.chat"
+        | filter contains(service.name, "bmad") and span.name == "chat qwen3.6"
 
         | summarize input = sum(coalesce(toLong(`gen_ai.usage.input_tokens`), toLong(`gen_ai.usage.prompt_tokens`))),
         output = sum(coalesce(toLong(`gen_ai.usage.output_tokens`), toLong(`gen_ai.usage.completion_tokens`)))
