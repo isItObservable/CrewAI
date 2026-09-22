@@ -326,7 +326,28 @@ namespace — this is the endpoint the crew pods send telemetry to. The Collecto
 enriches spans with Kubernetes metadata, normalises `gen_ai.*` attributes across all
 three instrumentation paths, and forwards everything to Dynatrace.
 
-### 8.3 Deploy the BMAD crew backend
+### 8.3 Deploy the node log collector (DaemonSet)
+
+A second Collector runs as a **DaemonSet** — one pod per node — to tail container
+log files directly from the host filesystem (`/var/log/pods`). It parses the
+CRI-O / containerd / Docker log format, extracts pod metadata from the file path,
+enriches with `k8sattributes`, and exports logs to Dynatrace alongside the OTLP
+signals from the crew pods.
+
+```bash
+kubectl apply -f observability/collector/k8s/otel-logs-collector.yaml
+
+# The operator creates a DaemonSet named otel-logs-collector-collector
+kubectl -n observability rollout status daemonset/otel-logs-collector-collector --timeout=120s
+```
+
+> **Why two collectors?** The gateway (`otel-gateway`, Deployment) receives
+> OTLP pushed by the application pods — traces, metrics, and structured logs.
+> The log collector (DaemonSet) pulls raw container stdout/stderr from the node
+> filesystem, which catches logs from any pod regardless of whether it speaks OTLP.
+> Both export to the same `dynatrace-otlp` secret and the same Dynatrace tenant.
+
+### 8.4 Deploy the BMAD crew backend
 
 ```bash
 # 1. Namespace
@@ -359,7 +380,7 @@ kubectl -n bmad-crew rollout status deploy/bmad-crew
 2. **Memory persistence.** CrewAI memory (LanceDB) is on local disk and ephemeral in a
    pod — the `PVC` mounts it at `/app/.crewai`. Only relevant if you enable `memory=True`.
 
-### 8.4 Deploy the CopilotKit UI
+### 8.5 Deploy the CopilotKit UI
 
 The browser-based frontend. `ui/k8s/configmap.yaml` also contains `${OLLAMA_HOST}` —
 use `envsubst` the same way:
