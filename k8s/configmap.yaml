@@ -6,7 +6,7 @@ metadata:
 data:
   # Local qwen via Ollama — no external key, just a base URL (the episode differentiator).
   MODEL: "ollama/qwen3.6"
-  OLLAMA_BASE_URL: "http://${OLLAMA_HOST}:11434"
+  OLLAMA_BASE_URL: "http://10.0.0.185:11434"
   MODEL_TEMPERATURE: "0.4"
   # OTel: send to the in-cluster Collector gateway.
   # 4318 = OTLP/HTTP. This is the collector Service DNS we validated live
