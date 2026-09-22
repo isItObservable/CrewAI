@@ -1,0 +1,142 @@
+id: 512426ac-5ea1-4a39-9181-126e3d07d15c
+name: CrewAI BMAD Crew — CrewAI + CopilotKit
+type: dashboard
+content:
+  version: 21
+  variables: []
+  tiles:
+    '1':
+      type: markdown
+      content: '## 🤖 BMAD Crew — CrewAI + CopilotKit Observability
+
+        8-agent software delivery pipeline · LLM: qwen3.6 via Ollama · GitHub MCP
+        tools · OTel → Dynatrace'
+    '2':
+      type: data
+      title: LLM Calls
+      query: fetch spans | filter contains(service.name, "bmad") | filter span.name
+        == "openai.chat" | summarize llm_calls=count()
+      visualization: singleValue
+      visualizationSettings:
+        singleValue:
+          label: Total LLM Calls
+          autoscale: true
+      querySettings: {}
+    '3':
+      type: data
+      title: Input Tokens
+      query: fetch spans | filter contains(service.name, "bmad") | filter span.name
+        == "openai.chat" | summarize total_input=sum(toLong(gen_ai.usage.input_tokens))
+      visualization: singleValue
+      visualizationSettings:
+        singleValue:
+          label: Total Input Tokens (null = not emitted by Ollama)
+          autoscale: true
+      querySettings: {}
+    '4':
+      type: data
+      title: Output Tokens
+      query: fetch spans | filter contains(service.name, "bmad") | filter span.name
+        == "openai.chat" | summarize total_output=sum(toLong(gen_ai.usage.output_tokens))
+      visualization: singleValue
+      visualizationSettings:
+        singleValue:
+          label: Total Output Tokens (null = not emitted by Ollama)
+          autoscale: true
+      querySettings: {}
+    '5':
+      type: data
+      title: Crew Runs
+      query: fetch spans | filter contains(service.name, "bmad") | filter startsWith(span.name,
+        "invoke_workflow") | summarize crew_runs=countDistinct(trace.id)
+      visualization: singleValue
+      visualizationSettings:
+        singleValue:
+          label: Crew Runs
+          autoscale: true
+      querySettings: {}
+    '6':
+      type: data
+      title: Token Consumption over Time
+      query: fetch spans | filter contains(service.name, "bmad") | filter span.name
+        == "openai.chat" | makeTimeseries input_tokens=sum(toLong(gen_ai.usage.input_tokens)),
+        output_tokens=sum(toLong(gen_ai.usage.output_tokens)), interval:5m
+      visualization: areaChart
+      visualizationSettings:
+        areaChart:
+          legend:
+            position: bottom
+      querySettings: {}
+    '7':
+      type: data
+      title: Agent Execution Time (seconds)
+      query: fetch spans | filter contains(service.name, "bmad") | filter startsWith(span.name,
+        "invoke_agent ") | filter contains(span.name, "(") | summarize avgDuration=avg(duration)/1000000000.0,
+        calls=count(), by:{span.name} | sort avgDuration desc | limit 20
+      visualization: table
+      visualizationSettings: {}
+      querySettings: {}
+    '8':
+      type: data
+      title: GitHub MCP Tool Calls
+      query: fetch spans | filter contains(service.name, "bmad") | filter startsWith(span.name,
+        "execute_tool ") | fieldsAdd tool=substringAfter(span.name, "execute_tool ")
+        | summarize calls=count(), by:{tool} | sort calls desc | limit 20
+      visualization: categoricalBarChart
+      visualizationSettings: {}
+      querySettings: {}
+    '9':
+      type: data
+      title: LLM Response Time
+      query: fetch spans | filter contains(service.name, "bmad") | filter span.name
+        == "openai.chat" | summarize avg_ms=avg(duration)/1000000, p95_ms=percentile(duration,
+        95)/1000000, calls=count()
+      visualization: table
+      visualizationSettings: {}
+      querySettings: {}
+  layouts:
+    '1':
+      x: 0
+      y: 0
+      w: 20
+      h: 2
+    '2':
+      x: 0
+      y: 2
+      w: 5
+      h: 4
+    '3':
+      x: 5
+      y: 2
+      w: 5
+      h: 4
+    '4':
+      x: 10
+      y: 2
+      w: 5
+      h: 4
+    '5':
+      x: 15
+      y: 2
+      w: 5
+      h: 4
+    '6':
+      x: 0
+      y: 6
+      w: 20
+      h: 8
+    '7':
+      x: 0
+      y: 14
+      w: 11
+      h: 8
+    '8':
+      x: 11
+      y: 14
+      w: 9
+      h: 8
+    '9':
+      x: 0
+      y: 22
+      w: 20
+      h: 4

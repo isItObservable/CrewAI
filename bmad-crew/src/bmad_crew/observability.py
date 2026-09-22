@@ -116,10 +116,15 @@ def _init_openlit(endpoint: str) -> bool:
         capture_message_content=os.getenv("OPENLIT_CAPTURE_CONTENT", "true").lower() == "true",
     )
 
-    # ---- 3. Activate native OTel instrumentors (already installed in image) --
-    # CrewAI 1.15.1 does not use litellm; it calls the OpenAI client directly.
-    # OpenLIT skips litellm instrumentation (not installed) so we activate the
-    # dedicated contrib instrumentors that cover CrewAI and the OpenAI client.
+    # ---- 3. Activate native CrewAI OTel instrumentor -------------------------
+    # CrewAI 1.15.1 calls the OpenAI client directly. OpenLIT already instruments
+    # the OpenAI client and captures token counts (gen_ai.usage.*). We add only
+    # the CrewAI instrumentor for agent/task/workflow lifecycle spans.
+    #
+    # NOTE: Do NOT activate OpenAIInstrumentor here. It patches the same
+    # openai.chat.completions.create that OpenLIT already patched, creating a
+    # double-wrap that breaks OpenLIT's token-capture callback and causes
+    # gen_ai.usage.input_tokens / output_tokens to be null on all LLM spans.
     try:
         from opentelemetry.instrumentation.crewai import CrewAIInstrumentor
         CrewAIInstrumentor().instrument()
@@ -127,14 +132,7 @@ def _init_openlit(endpoint: str) -> bool:
     except Exception as exc:
         print(f"[bmad-crew] CrewAI instrumentor skipped: {exc}")
 
-    try:
-        from opentelemetry.instrumentation.openai import OpenAIInstrumentor
-        OpenAIInstrumentor().instrument()
-        print("[bmad-crew] OpenAI OTel instrumentor activated")
-    except Exception as exc:
-        print(f"[bmad-crew] OpenAI instrumentor skipped: {exc}")
-
-    print("[bmad-crew] Instrumentation path: OpenLIT + native CrewAI/OpenAI")
+    print("[bmad-crew] Instrumentation path: OpenLIT + native CrewAI")
     return True
 
 

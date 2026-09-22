@@ -1,0 +1,850 @@
+id: 808fa135-3124-4622-bb39-113176e7035e
+name: CrewAI BMAD Crew — Health
+type: dashboard
+content:
+  layouts:
+    '0':
+      h: 2
+      w: 24
+      x: 0
+      y: 0
+    '1':
+      h: 1
+      w: 24
+      x: 0
+      y: 2
+    '10':
+      h: 6
+      w: 12
+      x: 12
+      y: 13
+    '11':
+      h: 6
+      w: 12
+      x: 0
+      y: 19
+    '12':
+      h: 6
+      w: 12
+      x: 12
+      y: 19
+    '13':
+      h: 1
+      w: 24
+      x: 0
+      y: 25
+    '14':
+      h: 6
+      w: 12
+      x: 0
+      y: 26
+    '15':
+      h: 6
+      w: 12
+      x: 12
+      y: 26
+    '16':
+      h: 6
+      w: 12
+      x: 0
+      y: 32
+    '17':
+      h: 6
+      w: 12
+      x: 12
+      y: 32
+    '18':
+      h: 1
+      w: 24
+      x: 0
+      y: 38
+    '19':
+      h: 6
+      w: 12
+      x: 0
+      y: 39
+    '2':
+      h: 3
+      w: 6
+      x: 0
+      y: 3
+    '20':
+      h: 6
+      w: 12
+      x: 12
+      y: 39
+    '21':
+      h: 10
+      w: 24
+      x: 0
+      y: 45
+    '22':
+      h: 2
+      w: 24
+      x: 0
+      y: 55
+    '23':
+      h: 3
+      w: 6
+      x: 0
+      y: 57
+    '24':
+      h: 3
+      w: 6
+      x: 6
+      y: 57
+    '25':
+      h: 3
+      w: 6
+      x: 12
+      y: 57
+    '26':
+      h: 3
+      w: 6
+      x: 18
+      y: 57
+    '27':
+      h: 6
+      w: 12
+      x: 0
+      y: 60
+    '28':
+      h: 6
+      w: 12
+      x: 12
+      y: 60
+    '3':
+      h: 3
+      w: 6
+      x: 6
+      y: 3
+    '4':
+      h: 3
+      w: 6
+      x: 12
+      y: 3
+    '5':
+      h: 3
+      w: 6
+      x: 18
+      y: 3
+    '6':
+      h: 1
+      w: 24
+      x: 0
+      y: 6
+    '7':
+      h: 6
+      w: 12
+      x: 0
+      y: 7
+    '8':
+      h: 6
+      w: 12
+      x: 12
+      y: 7
+    '9':
+      h: 6
+      w: 12
+      x: 0
+      y: 13
+  settings:
+    gridLayout:
+      columnsCount: 24
+  tiles:
+    '0':
+      content: '# 🩺 CrewAI — Health & Availability
+
+        Component, operator & agent health for the **observable-crewai** cluster:
+        Kubernetes workload state (DynaKube), agent-service RED metrics, agent-run
+        success & logs.'
+      type: markdown
+    '1':
+      content: '## Overview'
+      type: markdown
+    '10':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name},
+        filter:{ k8s.namespace.name == "bmad-crew" }
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Container Memory Working Set by Workload
+      type: data
+      visualization: lineChart
+      visualizationSettings:
+        autoSelectVisualization: false
+        chartSettings:
+          legend:
+            position: bottom
+        coloring:
+          colorRules:
+          - colorMode: color-palette
+            colorPalette: purple-rain
+            comparator: = *value*
+            field: DT.name
+            type: string
+            value: ''
+    '11':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: timeseries thr = avg(dt.kubernetes.container.cpu_throttled), by:{k8s.workload.name},
+        filter:{ k8s.namespace.name == "bmad-crew" }
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: CPU Throttling by Workload
+      type: data
+      visualization: lineChart
+      visualizationSettings:
+        autoSelectVisualization: false
+        chartSettings:
+          legend:
+            position: bottom
+        coloring:
+          colorRules:
+          - colorMode: color-palette
+            colorPalette: purple-rain
+            comparator: = *value*
+            field: DT.name
+            type: string
+            value: ''
+    '12':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: timeseries rx = avg(dt.kubernetes.pod.network_received_data), tx = avg(dt.kubernetes.pod.network_transmitted_data),
+        filter:{ k8s.namespace.name == "bmad-crew" }
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Pod Network I/O
+      type: data
+      visualization: lineChart
+      visualizationSettings:
+        autoSelectVisualization: false
+        chartSettings:
+          legend:
+            position: bottom
+        coloring:
+          colorRules:
+          - colorMode: color-palette
+            colorPalette: purple-rain
+            comparator: = *value*
+            field: DT.name
+            type: string
+            value: ''
+    '13':
+      content: '## Agent Service Health (RED)'
+      type: markdown
+    '14':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: timeseries req = sum(dt.service.request.count), by:{dt.entity.service},
+        filter:{ k8s.namespace.name == "bmad-crew" }
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Request Throughput by Agent Service
+      type: data
+      visualization: lineChart
+      visualizationSettings:
+        autoSelectVisualization: false
+        chartSettings:
+          legend:
+            position: bottom
+        coloring:
+          colorRules:
+          - colorMode: color-palette
+            colorPalette: purple-rain
+            comparator: = *value*
+            field: DT.name
+            type: string
+            value: ''
+    '15':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: timeseries fail = sum(dt.service.request.failure_count), by:{dt.entity.service},
+        filter:{ k8s.namespace.name == "bmad-crew" }
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Failures by Agent Service
+      type: data
+      visualization: lineChart
+      visualizationSettings:
+        autoSelectVisualization: false
+        chartSettings:
+          legend:
+            position: bottom
+        coloring:
+          colorRules:
+          - colorMode: color-palette
+            colorPalette: purple-rain
+            comparator: = *value*
+            field: DT.name
+            type: string
+            value: ''
+    '16':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: timeseries rt = avg(dt.service.request.response_time), by:{dt.entity.service},
+        filter:{ k8s.namespace.name == "bmad-crew" }
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Response Time by Agent Service
+      type: data
+      visualization: lineChart
+      visualizationSettings:
+        autoSelectVisualization: false
+        chartSettings:
+          legend:
+            position: bottom
+        coloring:
+          colorRules:
+          - colorMode: color-palette
+            colorPalette: purple-rain
+            comparator: = *value*
+            field: DT.name
+            type: string
+            value: ''
+    '17':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch spans
+
+        | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
+        ")
+
+        | filter contains(span.name, "(")
+
+        | summarize runs = count(), failed = countIf(span.status_code == "ERROR"),
+        by:{span.name}
+
+        | sort runs desc'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Agent Run Success
+      type: data
+      visualization: table
+      visualizationSettings:
+        autoSelectVisualization: false
+    '18':
+      content: '## Logs & Errors'
+      type: markdown
+    '19':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch logs
+
+        | filter k8s.namespace.name == "bmad-crew"
+
+        | makeTimeseries logs = count(), by:{k8s.deployment.name}'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Log Volume by Component
+      type: data
+      visualization: areaChart
+      visualizationSettings:
+        autoSelectVisualization: false
+        chartSettings:
+          legend:
+            position: bottom
+        coloring:
+          colorRules:
+          - colorMode: color-palette
+            colorPalette: purple-rain
+            comparator: = *value*
+            field: DT.name
+            type: string
+            value: ''
+    '2':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch spans
+
+        | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
+        ")
+
+        | filter contains(span.name, "(")
+
+        | summarize Agents = countDistinct(span.name)'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Active Agents
+      type: data
+      visualization: singleValue
+      visualizationSettings:
+        autoSelectVisualization: false
+        singleValue:
+          label: agents seen
+          recordField: Agents
+          sparklineSettings:
+            isVisible: false
+          trend:
+            isVisible: false
+    '20':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch logs
+
+        | filter k8s.namespace.name == "bmad-crew"
+
+        | summarize logs = count(), errors = countIf(loglevel == "ERROR" or status
+        == "ERROR"), by:{component = k8s.deployment.name}
+
+        | sort errors desc'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Log Errors by Component
+      type: data
+      visualization: table
+      visualizationSettings:
+        autoSelectVisualization: false
+    '21':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: |
+        fetch logs
+        | filter k8s.namespace.name == "bmad-crew" and isNotNull(gen_ai.operation.name)
+        | sort timestamp desc
+        | limit 50
+        | fieldsAdd outputRaw = gen_ai.output.messages[0], inputRaw = gen_ai.input.messages[-1]
+        | parse outputRaw, "JSON:outParsed"
+        | parse inputRaw, "JSON:inParsed"
+        | fieldsAdd outputText = outParsed[parts][0][content], inputText = inParsed[parts][0][content],
+                   finishReason = gen_ai.response.finish_reasons[0],
+                   toolname = outParsed[parts][0][name], response = inParsed[parts][0][response]
+        | fields timestamp, inTok = gen_ai.usage.input_tokens, outTok = gen_ai.usage.output_tokens, finishReason, inputText, outputText, toolname, response
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: GenAI Event Log
+      type: data
+      visualization: table
+      visualizationSettings:
+        autoSelectVisualization: false
+    '22':
+      content: '## Engine & Run Health (span-derived) additions
+
+        CrewAI emits **no OTLP metrics**, so these engine-liveness & run-quality panels
+        are derived from `gen_ai.*` / A2A spans.'
+      type: markdown
+    '23':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch spans
+
+        | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
+        ")
+
+        | filter contains(span.name, "(")
+
+        | summarize p50 = percentile(duration, 50) / 1000000000.0'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Run Latency p50 (s)
+      type: data
+      visualization: singleValue
+      visualizationSettings:
+        autoSelectVisualization: false
+        singleValue:
+          label: invoke_agent p50
+          recordField: p50
+          sparklineSettings:
+            isVisible: false
+          trend:
+            isVisible: false
+    '24':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch spans
+
+        | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
+        ")
+
+        | filter contains(span.name, "(")
+
+        | summarize p90 = percentile(duration, 90) / 1000000000.0'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Run Latency p90 (s)
+      type: data
+      visualization: singleValue
+      visualizationSettings:
+        autoSelectVisualization: false
+        singleValue:
+          label: invoke_agent p90
+          recordField: p90
+          sparklineSettings:
+            isVisible: false
+          trend:
+            isVisible: false
+    '25':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch spans
+
+        | filter contains(service.name, "bmad") and span.name == "openai.chat"
+
+        | summarize p90 = percentile(duration, 90) / 1000000000.0'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: LLM Latency p90 (s)
+      type: data
+      visualization: singleValue
+      visualizationSettings:
+        autoSelectVisualization: false
+        singleValue:
+          label: chat p90
+          recordField: p90
+          sparklineSettings:
+            isVisible: false
+          trend:
+            isVisible: false
+    '26':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch spans
+
+        | filter contains(service.name, "bmad") and startsWith(span.name, "execute_tool
+        ")
+
+        | summarize Errors = countIf(span.status_code == "ERROR")'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Tool Errors
+      type: data
+      visualization: singleValue
+      visualizationSettings:
+        autoSelectVisualization: false
+        singleValue:
+          label: execute_tool isError=true
+          recordField: Errors
+          sparklineSettings:
+            isVisible: false
+          trend:
+            isVisible: false
+    '27':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: fetch spans | filter contains(service.name, "bmad") and startsWith(span.name,
+        "invoke_workflow") | makeTimeseries tasks = count()
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Task Execution Throughput
+      type: data
+      visualization: areaChart
+      visualizationSettings:
+        autoSelectVisualization: false
+        chartSettings:
+          legend:
+            position: bottom
+        coloring:
+          colorRules:
+          - colorMode: color-palette
+            colorPalette: purple-rain
+            comparator: = *value*
+            field: DT.name
+            type: string
+            value: ''
+    '28':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch spans
+
+        | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
+        ")
+
+        | filter contains(span.name, "(")
+
+        | summarize runs = count(), failed = countIf(span.status_code == "ERROR"),
+        p50s = percentile(duration, 50) / 1000000000.0, p90s = percentile(duration,
+        90) / 1000000000.0, maxs = max(duration) / 1000000000.0, by:{span.name}
+
+        | sort p90s desc'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Run Latency by Agent (seconds)
+      type: data
+      visualization: table
+      visualizationSettings:
+        autoSelectVisualization: false
+    '3':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch spans
+
+        | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
+        ")
+
+        | filter contains(span.name, "(")
+
+        | summarize Runs = count()'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Agent Runs
+      type: data
+      visualization: singleValue
+      visualizationSettings:
+        autoSelectVisualization: false
+        singleValue:
+          label: invoke_agent
+          recordField: Runs
+          sparklineSettings:
+            isVisible: false
+          trend:
+            isVisible: false
+    '4':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch spans
+
+        | filter contains(service.name, "bmad") and startsWith(span.name, "invoke_agent
+        ")
+
+        | filter contains(span.name, "(")
+
+        | summarize Failed = countIf(span.status_code == "ERROR")'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Failed Runs
+      type: data
+      visualization: singleValue
+      visualizationSettings:
+        autoSelectVisualization: false
+        singleValue:
+          label: errored runs
+          recordField: Failed
+          sparklineSettings:
+            isVisible: false
+          trend:
+            isVisible: false
+    '5':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: 'fetch logs
+
+        | filter k8s.namespace.name == "bmad-crew"
+
+        | summarize Logs = count()'
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Log Records (component)
+      type: data
+      visualization: singleValue
+      visualizationSettings:
+        autoSelectVisualization: false
+        singleValue:
+          label: log records
+          recordField: Logs
+          sparklineSettings:
+            isVisible: false
+          trend:
+            isVisible: false
+    '6':
+      content: '## Kubernetes Workload Health (DynaKube)'
+      type: markdown
+    '7':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: timeseries desired = avg(dt.kubernetes.workload.pods_desired), by:{k8s.workload.name},
+        filter:{ k8s.namespace.name == "bmad-crew" }
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Pods Desired by Workload
+      type: data
+      visualization: lineChart
+      visualizationSettings:
+        autoSelectVisualization: false
+        chartSettings:
+          legend:
+            position: bottom
+        coloring:
+          colorRules:
+          - colorMode: color-palette
+            colorPalette: purple-rain
+            comparator: = *value*
+            field: DT.name
+            type: string
+            value: ''
+    '8':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: timeseries cond = avg(dt.kubernetes.workload.conditions), by:{k8s.workload.name},
+        filter:{ k8s.namespace.name == "bmad-crew" }
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Workload Conditions (availability)
+      type: data
+      visualization: lineChart
+      visualizationSettings:
+        autoSelectVisualization: false
+        chartSettings:
+          legend:
+            position: bottom
+        coloring:
+          colorRules:
+          - colorMode: color-palette
+            colorPalette: purple-rain
+            comparator: = *value*
+            field: DT.name
+            type: string
+            value: ''
+    '9':
+      davis:
+        davisVisualization:
+          isAvailable: true
+        enabled: false
+      query: timeseries cpu = avg(dt.kubernetes.container.cpu_usage), by:{k8s.workload.name},
+        filter:{ k8s.namespace.name == "bmad-crew" }
+      querySettings:
+        defaultSamplingRatio: 10
+        defaultScanLimitGbytes: 500
+        enableSampling: false
+        maxResultMegaBytes: 100
+        maxResultRecords: 1000
+      title: Container CPU Usage by Workload
+      type: data
+      visualization: lineChart
+      visualizationSettings:
+        autoSelectVisualization: false
+        chartSettings:
+          legend:
+            position: bottom
+        coloring:
+          colorRules:
+          - colorMode: color-palette
+            colorPalette: purple-rain
+            comparator: = *value*
+            field: DT.name
+            type: string
+            value: ''
+  variables: []
+  version: 21
