@@ -115,7 +115,26 @@ def _init_openlit(endpoint: str) -> bool:
         # Set OPENLIT_CAPTURE_CONTENT=false to redact in sensitive environments.
         capture_message_content=os.getenv("OPENLIT_CAPTURE_CONTENT", "true").lower() == "true",
     )
-    print("[bmad-crew] Instrumentation path: OpenLIT")
+
+    # ---- 3. Activate native OTel instrumentors (already installed in image) --
+    # CrewAI 1.15.1 does not use litellm; it calls the OpenAI client directly.
+    # OpenLIT skips litellm instrumentation (not installed) so we activate the
+    # dedicated contrib instrumentors that cover CrewAI and the OpenAI client.
+    try:
+        from opentelemetry.instrumentation.crewai import CrewAIInstrumentor
+        CrewAIInstrumentor().instrument()
+        print("[bmad-crew] CrewAI OTel instrumentor activated")
+    except Exception as exc:
+        print(f"[bmad-crew] CrewAI instrumentor skipped: {exc}")
+
+    try:
+        from opentelemetry.instrumentation.openai import OpenAIInstrumentor
+        OpenAIInstrumentor().instrument()
+        print("[bmad-crew] OpenAI OTel instrumentor activated")
+    except Exception as exc:
+        print(f"[bmad-crew] OpenAI instrumentor skipped: {exc}")
+
+    print("[bmad-crew] Instrumentation path: OpenLIT + native CrewAI/OpenAI")
     return True
 
 
